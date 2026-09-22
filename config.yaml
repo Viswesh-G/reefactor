@@ -1,0 +1,47 @@
+# Central Configuration for PINN Coral Bleaching Project
+# This file commands the ingestion, resolution, and execution pipelines.
+
+pipeline:
+  name: "GBR_Test_Pipeline_2020_2021"
+  description: "Test pipeline covering a decent region in the Great Barrier Reef (GBR)"
+
+spatial_canvas:
+  # Bounding box coordinates for the Great Barrier Reef region
+  lat_min: -24.0
+  lat_max: -10.0
+  lon_min: 142.0
+  lon_max: 154.0
+  # Target unified resolution (in degrees, approx 5km)
+  target_resolution: 0.05
+
+temporal_canvas:
+  # Time coverage
+  start_date: "2020-01-01"
+  end_date: "2020-12-31"
+  # Lag cycle: daily, weekly, monthly, annually
+  time_lag_cycle: "daily"
+  # Lag strategy: min, max, avg
+  lag_strategy: "max"
+
+data_sources:
+  # Examples of sources that would be ingested and resolved to the unified canvas
+  sst:
+    source: "NOAA_CRW"
+    variable: "sea_surface_temperature"
+    # Resolution provided by the source itself
+    source_resolution: 0.05
+    # ERDDAP / OPeNDAP endpoint for streaming data without local download
+    opendap_url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW"
+  
+  velocity:
+    source: "HYCOM"
+    variable: "water_u, water_v"
+    source_resolution: 0.08
+    # Example HYCOM OPeNDAP endpoint
+    opendap_url: "http://tds.hycom.org/thredds/dodsC/GLBv0.08/expt_93.0"
+
+storage:
+  # Final destination for the resolved, unified data
+  processed_zarr_path: "data/processed/unified_gbr_canvas.zarr"
+  # Whether to delete raw NetCDF files after Zarr is created (The CLEANUP state)
+  delete_raw_after_processing: true

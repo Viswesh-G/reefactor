@@ -1,0 +1,10 @@
+torch
+xarray
+zarr
+dask
+netCDF4
+numpy
+pandas
+PyYAML
+fsspec
+scipy
