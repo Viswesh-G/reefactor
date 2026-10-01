@@ -1,15 +1,19 @@
-.PHONY: install ingest train clean help
+.PHONY: install ingest train eval clean help
 
 # Python executable from the virtual environment (Windows)
 PYTHON = venv\Scripts\python.exe
-PIP = venv\Scripts\pip.exe
+PIP    = venv\Scripts\pip.exe
 
 help:
-	@echo Available commands:
-	@echo   make install  - Install dependencies into the virtual environment
-	@echo   make ingest   - Run the data ingestion and resolution pipeline
-	@echo   make train    - Run the PINN model training
-	@echo   make clean    - Remove cached Python files
+	@echo.
+	@echo  REEFS_ML — PINN Coral Bleaching Pipeline
+	@echo  =========================================
+	@echo  make install   Install dependencies into the virtual environment
+	@echo  make ingest    Stream satellite data and build the Zarr data store
+	@echo  make train     Train the Physics-Informed Neural Network
+	@echo  make eval      Evaluate the best trained model and print metrics
+	@echo  make clean     Remove Python cache files
+	@echo.
 
 install:
 	$(PIP) install -r requirements.txt
@@ -19,6 +23,9 @@ ingest:
 
 train:
 	$(PYTHON) run_pinns.py
+
+eval:
+	$(PYTHON) run_eval.py
 
 clean:
 	@echo Cleaning up Python cache files...

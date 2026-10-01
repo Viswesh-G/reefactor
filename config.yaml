@@ -1,47 +1,71 @@
 # Central Configuration for PINN Coral Bleaching Project
-# This file commands the ingestion, resolution, and execution pipelines.
+# This single file drives every stage: ingestion → training → evaluation.
 
 pipeline:
-  name: "GBR_Test_Pipeline_2020_2021"
-  description: "Test pipeline covering a decent region in the Great Barrier Reef (GBR)"
+  name: "GBR_PINN_2020"
+  description: "Physics-Informed Neural Network for Great Barrier Reef coral bleaching prediction"
 
 spatial_canvas:
-  # Bounding box coordinates for the Great Barrier Reef region
   lat_min: -24.0
   lat_max: -10.0
   lon_min: 142.0
   lon_max: 154.0
-  # Target unified resolution (in degrees, approx 5km)
+  # ~5km resolution — matches NOAA CoralTemp native grid exactly (no upsampling needed)
   target_resolution: 0.05
 
 temporal_canvas:
-  # Time coverage
-  start_date: "2020-01-01"
-  end_date: "2020-12-31"
-  # Lag cycle: daily, weekly, monthly, annually
+  start_date: "2017-01-01"
+  end_date: "2023-12-31"
   time_lag_cycle: "daily"
-  # Lag strategy: min, max, avg
   lag_strategy: "max"
 
 data_sources:
-  # Examples of sources that would be ingested and resolved to the unified canvas
   sst:
     source: "NOAA_CRW"
-    variable: "sea_surface_temperature"
-    # Resolution provided by the source itself
-    source_resolution: 0.05
-    # ERDDAP / OPeNDAP endpoint for streaming data without local download
+    # NOAA CoralTemp 5km — free public ERDDAP, no login, updated daily
+    # Provides SST, DHW, Hotspot, and Bleaching Alert Area on the same grid.
     opendap_url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW"
-  
+    source_resolution: 0.05
+    # Exact variable names as they appear in the remote ERDDAP dataset
+    variables: ["CRW_SST", "CRW_DHW"]
+    # Rename to clean internal names used everywhere else in the codebase
+    rename_vars:
+      CRW_SST: sea_surface_temperature
+      CRW_DHW: degree_heating_weeks
+    drop_dims: []
+
   velocity:
-    source: "HYCOM"
-    variable: "water_u, water_v"
-    source_resolution: 0.08
-    # Example HYCOM OPeNDAP endpoint
-    opendap_url: "http://tds.hycom.org/thredds/dodsC/GLBv0.08/expt_93.0"
+    source: "NESDIS_ALTIMETRY"
+    # NOAA CoastWatch Geostrophic Currents from Altimetry
+    opendap_url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisSSH1day"
+    source_resolution: 0.25
+    variables: ["ugos", "vgos"]
+    rename_vars:
+      ugos: water_u
+      vgos: water_v
+    # No extra depth dimension to drop for this dataset
+    drop_dims: []
+
+dataset:
+  lookback: 14       # Days of past SST maps fed into the encoder
+  horizon: 7         # Days ahead to predict (also the decoder output length)
+  val_fraction: 0.2  # Chronological split: last 20% of time is held out for validation
+  # Spatial patch size for training. Set to null to use the full GBR extent (recommended for GPU).
+  # Set to an integer (e.g. 64) if training on CPU and running out of memory.
+  patch_size: 64
 
 storage:
-  # Final destination for the resolved, unified data
   processed_zarr_path: "data/processed/unified_gbr_canvas.zarr"
-  # Whether to delete raw NetCDF files after Zarr is created (The CLEANUP state)
+  checkpoint_dir: "data/checkpoints"
   delete_raw_after_processing: true
+
+training:
+  epochs: 50
+  batch_size: 4
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  gradient_clip: 1.0
+  # Smoothing factor for the Exponential Moving Average used in dynamic loss balancing
+  ema_alpha: 0.9
+  # Thermal diffusivity constant K in the Advection-Diffusion equation
+  physics_K: 0.05
