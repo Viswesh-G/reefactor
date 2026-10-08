@@ -1,4 +1,5 @@
 import os
+import csv
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -59,8 +60,18 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
 
     best_val_loss = float("inf")
 
+    # --- CSV Training Log ---
+    # Logs one row per epoch: useful for generating Figure 3 (λ_phy convergence)
+    # and lead-time RMSE decay curves in the paper.
+    log_path = os.path.join(checkpoint_dir, "training_log.csv")
+    log_fields = ["epoch", "data_loss", "phy_loss", "lambda_phy", "val_loss"]
+    log_file = open(log_path, "w", newline="")
+    log_writer = csv.DictWriter(log_file, fieldnames=log_fields)
+    log_writer.writeheader()
+
     print("Starting Physics-Informed Training...")
     print(f"  Checkpoint directory: {checkpoint_dir}")
+    print(f"  Training log:         {log_path}")
     print(f"  Epochs: {epochs} | LR: {lr} | Batch size set by DataLoader")
 
     for epoch in range(epochs):
@@ -164,17 +175,79 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
             ckpt_path,
         )
 
+        # --- Write CSV log row ---
+        avg_data_loss = epoch_data_loss / n_train
+        avg_phy_loss  = epoch_phy_loss  / n_train
+        log_writer.writerow({
+            "epoch":      epoch + 1,
+            "data_loss":  f"{avg_data_loss:.6f}",
+            "phy_loss":   f"{avg_phy_loss:.6f}",
+            "lambda_phy": f"{lambda_phy:.6f}",
+            "val_loss":   f"{val_loss:.6f}" if not (val_loss != val_loss) else "nan",
+        })
+        log_file.flush()  # Write immediately so progress is visible even if training crashes
+
         # Print epoch summary
         print(
             f"Epoch [{epoch+1:>3}/{epochs}] | "
-            f"Data: {epoch_data_loss/n_train:.4f} | "
-            f"Phy: {epoch_phy_loss/n_train:.4f} | "
+            f"Data: {avg_data_loss:.4f} | "
+            f"Phy: {avg_phy_loss:.4f} | "
             f"λ_phy: {lambda_phy:.4f}"
             f"{val_info}"
         )
 
-    print("Training Complete!")
+    log_file.close()
+    print(f"Training Complete! Log saved to: {log_path}")
     return model
+
+
+def resume_from_checkpoint(model, checkpoint_path: str, device: str = "cpu"):
+    """
+    Loads a latest_checkpoint.pt and returns the model with restored weights,
+    plus the epoch to resume from and the last lambda_phy value.
+
+    Use this to continue a training run that was interrupted:
+
+        model, start_epoch, lambda_phy = resume_from_checkpoint(model, ckpt_path)
+        # Then call train_pinn with epochs reduced by start_epoch,
+        # or manage the loop manually.
+
+    Args:
+        model:           An SST_ConvLSTM instance (same architecture as when saved).
+        checkpoint_path: Path to latest_checkpoint.pt saved by train_pinn().
+        device:          'cpu' or 'cuda' — where to load the weights.
+
+    Returns:
+        model:       Model with restored weights.
+        start_epoch: The next epoch to train (i.e., checkpoint epoch + 1).
+        lambda_phy:  The last physics weight value, for EMA continuity.
+    """
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(
+            f"Checkpoint not found: {checkpoint_path}\n"
+            "Run `make train` to start training from scratch."
+        )
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(ckpt["model_state_dict"])
+    start_epoch = ckpt.get("epoch", 0)          # epoch already completed
+    lambda_phy  = ckpt.get("lambda_phy", 1.0)
+    best_val    = ckpt.get("best_val_loss", float("inf"))
+    print(f"Resumed from checkpoint: epoch {start_epoch} | "
+          f"λ_phy={lambda_phy:.4f} | best_val={best_val:.4f}")
+    return model, start_epoch, lambda_phy
+
+
+def count_parameters(model) -> int:
+    """
+    Returns the total number of trainable parameters in the model.
+    Used in the paper's model description section.
+
+    Example output:
+        SST_ConvLSTM trainable parameters: 1,234,567
+    """
+    total = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"  Trainable parameters: {total:,}")
+    return total
 
 
 # -------------------------------------------------------

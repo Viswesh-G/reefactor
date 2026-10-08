@@ -1,4 +1,4 @@
-.PHONY: install ingest train eval clean help
+.PHONY: install ingest train eval baseline ablation noaa_baseline plot all clean help
 
 # Python executable from the virtual environment (Windows)
 PYTHON = venv\Scripts\python.exe
@@ -8,15 +8,23 @@ help:
 	@echo.
 	@echo  REEFS_ML — PINN Coral Bleaching Pipeline
 	@echo  =========================================
-	@echo  make install   Install dependencies into the virtual environment
-	@echo  make ingest    Stream satellite data and build the Zarr data store
-	@echo  make train     Train the Physics-Informed Neural Network
-	@echo  make eval      Evaluate the best trained model and print metrics
-	@echo  make clean     Remove Python cache files
+	@echo  make install        Install dependencies into the virtual environment
+	@echo  make all            Run the FULL pipeline: ingest+train+baseline+eval+plot
+	@echo  make ingest         Stream satellite data and build the Zarr data store
+	@echo  make train          Train the Physics-Informed ConvLSTM (PhyConvLSTM)
+	@echo  make eval           Evaluate the best trained PINN and print metrics
+	@echo  make baseline       Train the Vanilla ConvLSTM baseline (no physics loss)
+	@echo  make ablation       Train the ablation: PINN with K=0 (advection only)
+	@echo  make noaa_baseline  Run the NOAA CRW operational DHW algorithm baseline
+	@echo  make plot           Generate all paper figures from saved checkpoints
+	@echo  make clean          Remove Python cache files
 	@echo.
 
 install:
 	$(PIP) install -r requirements.txt
+
+all:
+	$(PYTHON) run_all.py
 
 ingest:
 	$(PYTHON) run_ingestion.py
@@ -26,6 +34,18 @@ train:
 
 eval:
 	$(PYTHON) run_eval.py
+
+baseline:
+	$(PYTHON) run_baseline.py
+
+ablation:
+	$(PYTHON) run_ablation.py
+
+noaa_baseline:
+	$(PYTHON) run_noaa_dhw_baseline.py
+
+plot:
+	$(PYTHON) run_plot_figures.py
 
 clean:
 	@echo Cleaning up Python cache files...

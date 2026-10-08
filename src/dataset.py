@@ -35,6 +35,7 @@ class ReefDataset(Dataset):
         split: str = "train",       # "train" or "val"
         val_fraction: float = 0.2,  # Fraction of time held out for validation
         patch_size: int = None,     # None = full spatial extent; int = crop to NxN patch
+        random_patch: bool = True,  # True = random crop per sample (training); False = deterministic (val)
     ):
         """
         Args:
@@ -48,9 +49,10 @@ class ReefDataset(Dataset):
                           Useful for training on CPU where the full GBR grid is too large.
                           Set to None (default) to use the full spatial extent.
         """
-        self.lookback   = lookback
-        self.horizon    = horizon
-        self.patch_size = patch_size
+        self.lookback     = lookback
+        self.horizon      = horizon
+        self.patch_size   = patch_size
+        self.random_patch = random_patch
 
         # Open the Zarr store lazily — data stays on disk until we slice it in __getitem__
         self.ds = xr.open_zarr(zarr_path, consolidated=True)
@@ -139,9 +141,15 @@ class ReefDataset(Dataset):
         if self.patch_size is not None:
             h_max = max(0, self.n_lat - self.patch_size)
             w_max = max(0, self.n_lon - self.patch_size)
-            # Simple but deterministic: different offset for each sample index
-            h0 = (idx * 7)  % (h_max + 1) if h_max > 0 else 0
-            w0 = (idx * 11) % (w_max + 1) if w_max > 0 else 0
+            if self.random_patch:
+                # Random offset per sample: maximises spatial coverage during training
+                h0 = int(np.random.randint(0, h_max + 1)) if h_max > 0 else 0
+                w0 = int(np.random.randint(0, w_max + 1)) if w_max > 0 else 0
+            else:
+                # Deterministic offset: same crop for every call with the same idx
+                # Used for validation/inference so results are reproducible.
+                h0 = (idx * 7)  % (h_max + 1) if h_max > 0 else 0
+                w0 = (idx * 11) % (w_max + 1) if w_max > 0 else 0
             p  = self.patch_size
             x_sst = x_sst[:, :, h0:h0+p, w0:w0+p]
             y_sst = y_sst[:, :, h0:h0+p, w0:w0+p]

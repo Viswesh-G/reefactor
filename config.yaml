@@ -13,6 +13,49 @@ spatial_canvas:
   # ~5km resolution — matches NOAA CoralTemp native grid exactly (no upsampling needed)
   target_resolution: 0.05
 
+# ── Source-native limits + derived common/minimal & maximal/envelope ──
+# Minimal (common) = intersection of ALL sources: every variable real, no gaps.
+#   Limited by velocity (NESDIS altimetry starts 2017). Use this for strict PINN runs.
+# Maximal (envelope) = widest requestable: SST-only extension back to 1985.
+#   Outside common but inside maximal → velocity missing by design (validator warns).
+source_natives:
+  sst: # NOAA CoralTemp v3.1 5km daily, global
+    start_date: "1985-01-01"
+    end_date: "present"
+    lat_min: -89.975
+    lat_max: 89.975
+    lon_min: -179.975
+    lon_max: 179.975
+    resolution: 0.05
+  velocity: # NESDIS CoastWatch altimetry geostrophic currents, near-global
+    start_date: "2017-01-01"
+    end_date: "present"
+    lat_min: -75.0
+    lat_max: 75.0
+    lon_min: -180.0
+    lon_max: 180.0
+    resolution: 0.25
+
+common_coverage: # MINIMAL — intersection, all-vars-real guarantee
+  start_date: "2017-01-01"
+  end_date: "2023-12-31" # frozen study end; set to "present" for live mode
+  lat_min: -24.0
+  lat_max: -10.0
+  lon_min: 142.0
+  lon_max: 154.0
+  resolution: 0.05
+  note: "SST ∩ velocity ∩ GBR canvas. Requested canvas must lie inside this for strict mode."
+
+maximal_coverage: # MAXIMAL — envelope, widest requestable without extrapolation
+  start_date: "1985-01-01" # SST-only before 2017
+  end_date: "present"
+  lat_min: -24.0
+  lat_max: -10.0
+  lon_min: 142.0
+  lon_max: 154.0
+  resolution: 0.05
+  note: "Same GBR canvas, SST extends to 1985. Velocity absent pre-2017 by design."
+
 temporal_canvas:
   start_date: "2017-01-01"
   end_date: "2023-12-31"

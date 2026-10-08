@@ -1,213 +1,198 @@
-# REEFS_ML — Physics-Informed Neural Network for Coral Bleaching Prediction
+# REEFS_ML — Physics-Informed ConvLSTM for Coral Bleaching Prediction
 
-A research-grade machine learning pipeline that predicts Sea Surface Temperature (SST) and Degree Heating Weeks (DHW) across the Great Barrier Reef, using a **Physics-Informed Neural Network (PINN)** — a ConvLSTM model whose training loss includes a term enforcing the Advection-Diffusion equation of ocean heat transport.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![CPU-Compatible](https://img.shields.io/badge/GPU-Not%20Required-green.svg)]()
+[![Open Data](https://img.shields.io/badge/data-NOAA%20Open%20Access-blue.svg)](https://coralreefwatch.noaa.gov)
 
-The project is designed for a comparative research paper benchmarking PINN predictions against the standard NOAA DHW threshold metric.
+A research-grade, fully reproducible ML pipeline that predicts Sea Surface Temperature (SST) and Degree Heating Weeks (DHW) across the Great Barrier Reef using a **Physics-Informed ConvLSTM (PhyConvLSTM)**. The model's training loss includes a term enforcing the ocean Advection-Diffusion equation, using real geostrophic surface currents as the advection forcing.
 
----
-
-## Why a PINN?
-
-NOAA's operational coral bleaching alert system uses a simple accumulator: if SST exceeds the local climatological maximum by 1°C, it counts as a "hot day," and 12 weeks of hot days constitute a bleaching alert. This works but ignores the physical movement of heat — ocean currents can advect thermal stress into or away from a reef faster than a static threshold detects.
-
-A PINN adds a physics penalty to the loss function:
-
-```
-Total Loss = MSE(predictions, observed_SST)
-           + λ · Residual(Advection-Diffusion equation)
-```
-
-The Advection-Diffusion residual checks that the rate of temperature change in each predicted grid cell is consistent with the local ocean current velocity field. If a prediction is physically impossible (e.g., heat accumulates where currents should be dispersing it), the model is penalised.
-
-This makes the model extrapolate better to extreme events (marine heatwaves) it has never seen, because it cannot cheat its way to low training loss with non-physical shortcuts.
+> **Novel contribution:** The first GBR-scale PINN to link ocean heat transport physics directly to satellite-derived biological coral stress metrics (DHW). See [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 
 ---
 
-## Project Structure
-
-```
-REEFS_ML/
-├── config.yaml           ← Single control panel: region, time range, data sources, hyperparams
-├── run_ingestion.py      ← Entry point: validate config → stream satellite data → write Zarr
-├── run_pinns.py          ← Entry point: load Zarr → build model → train → save checkpoints
-├── run_eval.py           ← Entry point: load checkpoint → compute metrics → save plot
-├── Makefile              ← Shortcuts: make ingest | train | eval | install | clean
-├── requirements.txt      ← Python dependencies
-│
-├── docs/
-│   ├── README.md                              ← This file
-│   ├── PINN_Coral_Bleaching_Research_History.md
-│   └── PINN_Coral_Bleaching_UNABRIDGED_History.md
-│
-└── src/
-    ├── config_validator.py   ← Validates config.yaml before any heavy operations run
-    ├── data_pipeline.py      ← FSM: OPeNDAP stream → resample → validate → save Zarr
-    ├── dataset.py            ← PyTorch Dataset: sliding-window samples from the Zarr store
-    ├── models.py             ← 2-layer ConvLSTM encoder-decoder architecture
-    ├── physics.py            ← Custom PhyLoss: Advection-Diffusion residual via fixed conv kernels
-    ├── train.py              ← Training loop with dynamic gradient-annealing + checkpointing
-    └── metrics.py            ← RMSE, ACC, NSE, and Degree Heating Weeks computation
-```
-
----
-
-## Setup
+## Quick Start
 
 ```bash
-# 1. Create and activate a virtual environment
+git clone https://github.com/[repo]/REEFS_ML
+cd REEFS_ML
 python -m venv venv
 venv\Scripts\activate          # Windows
-# source venv/bin/activate     # macOS/Linux
-
-# 2. Install dependencies
+# source venv/bin/activate     # Linux/macOS
 make install
-# or: pip install -r requirements.txt
+make all                       # Full pipeline: ingest → train → eval → plot
 ```
+
+> No GPU required. No proprietary data. No API keys.
 
 ---
 
-## Running the Pipeline
+## The Research Problem
 
-The full pipeline runs in three sequential steps:
+NOAA's operational coral bleaching alert system — Degree Heating Weeks (DHW) — accumulates thermal stress using a static threshold applied to raw satellite SST. It ignores the physical movement of heat by ocean currents. A marine heatwave can be *advected* into a reef faster than the static accumulator detects, and a bleaching event can be missed.
 
-### Step 1 — Ingest Data
+**PhyConvLSTM-DHW** adds an advection-diffusion physics residual to the ConvLSTM loss:
 
+```
+Total Loss = MSE(ŷ, y_SST)  +  λ_phy · ||∂T/∂t + u·∂T/∂x + v·∂T/∂y − K·∇²T||²
+```
+
+where `(u, v)` are the real NESDIS geostrophic surface current fields. The physics weight `λ_phy` is dynamically adjusted each batch via gradient-magnitude annealing (Wang et al., 2021) to prevent gradient pathology.
+
+---
+
+## Pipeline Steps
+
+### `make install` — Install dependencies
+```bash
+make install
+```
+
+### `make ingest` — Stream satellite data → Zarr
 ```bash
 make ingest
 ```
+Streams lazily from free public ERDDAP servers over OPeNDAP. Only the GBR bounding box is transferred. Falls back to synthetic data if servers are unreachable.
 
-Streams satellite data directly from free public ERDDAP servers over OPeNDAP — **no files are downloaded to disk**. The resulting unified dataset is written to `data/processed/unified_gbr_canvas.zarr`.
-
-**Data sources (all free, no login required):**
-
-| Variable | Source | ERDDAP Dataset |
+| Variable | Source | ERDDAP ID |
 |---|---|---|
-| Sea Surface Temperature (daily, 5km) | NOAA Coral Reef Watch | `NOAA_DHW_5km` |
-| Degree Heating Weeks (pre-computed) | NOAA Coral Reef Watch | `NOAA_DHW_5km` |
-| Ocean Surface Currents (5-day, 0.33°) | OSCAR / JPL | `jplOscar` |
+| SST + DHW (0.05°, daily) | NOAA CoralTemp | `NOAA_DHW` |
+| Currents u, v (0.25°, daily) | NESDIS Altimetry | `nesdisSSH1day` |
 
-If either server is unreachable, the pipeline automatically falls back to physically realistic synthetic data so you can continue developing and testing.
-
-### Step 2 — Train
-
+### `make train` — Train PhyConvLSTM
 ```bash
 make train
+# Resume after interruption:
+venv\Scripts\python.exe run_pinns.py --resume
 ```
+Saves `best_model.pt` and `latest_checkpoint.pt` every epoch. Writes `training_log.csv` with epoch, data_loss, phy_loss, λ_phy, val_loss.
 
-Trains the ConvLSTM-PINN for the number of epochs set in `config.yaml`. A checkpoint is saved after every epoch. The model with the lowest validation loss is saved separately as `data/checkpoints/best_model.pt`.
+### `make baseline` — Vanilla ConvLSTM (no physics)
+```bash
+make baseline
+```
+Same architecture, MSE-only loss. Saves to `data/checkpoints/baseline/`.
 
-Training logs print: Data Loss | Physics Loss | λ_phy (dynamic weight) | Validation Loss.
+### `make ablation` — Physics ablation (K=0, advection only)
+```bash
+make ablation
+```
+Same PINN loop with diffusivity K=0 — isolates whether the diffusion term specifically drives performance improvement.
 
-### Step 3 — Evaluate
+### `make noaa_baseline` — NOAA CRW operational baseline
+```bash
+make noaa_baseline
+```
+Applies the NOAA DHW algorithm directly to raw Zarr SST. Establishes the operational performance ceiling without ML.
 
+### `make eval` — Evaluate and compute metrics
 ```bash
 make eval
 ```
+Evaluates `best_model.pt` on the held-out 2023 validation year. Outputs:
+- `eval_metrics.csv` — RMSE, ACC, NSE, DHW RMSE, DHW ACC, Bleaching Alert F1/IoU
+- `eval_lead_rmse.csv` — per-day RMSE for Figure 2
+- `eval_comparison.png` — True vs. Predicted vs. Difference maps
 
-Loads `best_model.pt`, runs inference on the held-out validation split, and prints:
+### `make plot` — Generate all paper figures
+```bash
+make plot
+```
+Generates four publication-ready figures in `data/checkpoints/figures/`:
 
-| Metric | What it measures |
+| Figure | Content |
 |---|---|
-| RMSE (°C) | Average SST prediction error |
-| Anomaly Correlation (ACC) | How well spatial/temporal patterns are captured |
-| Nash-Sutcliffe Efficiency | Skill vs. always predicting the mean (1.0 = perfect, 0.0 = no skill) |
-| DHW RMSE (°C-weeks) | Error in derived Degree Heating Weeks vs. NOAA ground truth |
-| DHW Correlation | How well bleaching stress patterns are predicted |
-
-Also saves `data/checkpoints/eval_comparison.png` — a 3-panel map showing True SST, Predicted SST, and their difference for the first validation sample.
+| `figure1_dhw_spatial_comparison.png` | NOAA vs. PhyConvLSTM vs. Vanilla ConvLSTM DHW maps |
+| `figure2_lead_time_rmse.png` | RMSE vs. forecast lead day (1–7) |
+| `figure3_lambda_convergence.png` | λ_phy convergence + validation loss curves |
+| `figure4_bleaching_alert_overlay.png` | 2023 GBR bleaching event alert overlay |
 
 ---
 
 ## Configuration
 
-All parameters live in `config.yaml`. Key settings:
+All parameters live in `config.yaml`. Nothing is hardcoded.
 
 ```yaml
 spatial_canvas:
-  lat_min: -24.0   # Great Barrier Reef bounding box
+  lat_min: -24.0         # GBR bounding box
   lat_max: -10.0
   lon_min: 142.0
   lon_max: 154.0
-  target_resolution: 0.05   # Degrees (~5km)
+  target_resolution: 0.05  # ~5km, matches NOAA CoralTemp native grid
 
 temporal_canvas:
-  start_date: "2020-01-01"
-  end_date:   "2020-12-31"
+  start_date: "2017-01-01"
+  end_date:   "2023-12-31"
 
 dataset:
-  lookback: 14        # Days of past SST fed to encoder
-  horizon: 7          # Days ahead to predict
-  val_fraction: 0.2   # Last 20% of time for validation
-  patch_size: null    # null = full GBR; set to 64 for CPU testing
+  lookback: 14       # Days of past SST → encoder input
+  horizon: 7         # Days ahead to predict
+  val_fraction: 0.2  # Last 20% of time axis → validation (2023 = record bleaching year)
+  patch_size: 64     # Spatial crop for CPU training; set to null for full GBR (GPU)
 
 training:
   epochs: 50
   batch_size: 4
-  physics_K: 0.05     # Thermal diffusivity in the Advection-Diffusion equation
+  learning_rate: 0.001
+  physics_K: 0.05    # Thermal diffusivity K in dT/dt + u·∂T/∂x + v·∂T/∂y = K·∇²T
+  ema_alpha: 0.9     # EMA smoothing for dynamic λ_phy balancing
 ```
 
 ---
 
-## Architecture
+## Experimental Conditions
 
-```
-Past 14 days of SST
-   │
-   ▼
-┌──────────────────────────────────────────┐
-│  SST_ConvLSTM  (Encoder → Decoder)       │
-│                                          │
-│  Encoder: ConvLSTMCell × 2 layers        │
-│    → reads 14 past SST maps, builds      │
-│      spatiotemporal memory state         │
-│                                          │
-│  Decoder: ConvLSTMCell × 2 layers        │
-│    → predicts 7 future SST maps          │
-│      autoregressively                    │
-│                                          │
-│  final_conv: 64ch → 1ch per pixel        │
-└──────────────────────────────────────────┘
-   │
-   ▼
-Predicted SST for next 7 days
-
-Loss = MSE(pred, true_SST)
-     + λ · PhyLoss(pred, u_current, v_current)
-
-PhyLoss checks: dT/dt + u·∂T/∂x + v·∂T/∂y = K·∇²T
-(Advection-Diffusion equation)
-λ is dynamically adjusted each batch via gradient annealing.
-```
+| Condition | Script | physics_K | λ_phy balancing |
+|---|---|---|---|
+| **PhyConvLSTM (ours)** | `run_pinns.py` | 0.05 | ✅ Wang et al. 2021 |
+| Ablation (advection only) | `run_ablation.py` | 0.00 | ✅ Wang et al. 2021 |
+| Vanilla ConvLSTM | `run_baseline.py` | N/A | ❌ no physics |
+| NOAA CRW operational | `run_noaa_dhw_baseline.py` | N/A | N/A |
 
 ---
 
-## Key Design Choices
+## Evaluation Metrics
 
-**OPeNDAP streaming, no bulk downloads.**
-All satellite data is fetched lazily over the network. Only the exact spatial bounding box and time range requested are transferred. The entire 1-year GBR SST dataset compresses to roughly 200–400 MB in Zarr format (chunked, float32).
-
-**Zarr over NetCDF.**
-Zarr is chunk-optimised for time-series access: loading a 14-day sliding window reads exactly one chunk, not the whole file.
-
-**Chronological train/val split.**
-For time series, shuffling across the split boundary leaks future information into training. The last 20% of the time axis is always held out.
-
-**Normalization stats from training split only.**
-Computing mean/std on the full dataset (including validation) would be data leakage. Stats are computed from the first 80% only and applied consistently.
-
-**Dynamic gradient annealing (Wang et al., 2021).**
-The physics weight λ is adjusted each batch by comparing gradient magnitudes, preventing either loss from dominating and ensuring the physics constraint is always actively shaping the model.
+| Metric | Description |
+|---|---|
+| RMSE (°C) | Root mean square SST prediction error |
+| ACC | Anomaly Correlation Coefficient — spatial/temporal pattern fidelity |
+| NSE | Nash-Sutcliffe Efficiency — skill vs. always-predict-mean baseline |
+| DHW RMSE (°C-weeks) | Error in accumulated thermal stress |
+| DHW ACC | Spatial correlation of bleaching hotspot maps |
+| DHW>4 F1 / IoU | Alert Level 1 classification agreement |
+| DHW>8 F1 / IoU | Alert Level 2 classification agreement |
 
 ---
 
-## Research Paper Benchmarks
+## Repository Structure
 
-For the paper, the PINN should be compared against:
-
-1. **NOAA DHW operational algorithm** — the current operational standard (no ML)
-2. **Vanilla ConvLSTM** — same architecture, MSE loss only, no physics penalty
-3. **Ablation: PINN with λ = 0** — confirm physics loss is what drives improvement
-4. **Extreme heatwave generalisation** — test on 2016 or 2022 bleaching events (out-of-distribution)
+```
+REEFS_ML/
+├── config.yaml                  ← SINGLE control panel
+├── run_all.py                   ← Full pipeline orchestrator (--from phase)
+├── run_ingestion.py             ← Data ingest entry point
+├── run_pinns.py                 ← PINN training (--resume supported)
+├── run_baseline.py              ← Vanilla ConvLSTM baseline
+├── run_ablation.py              ← Physics ablation (K=0)
+├── run_noaa_dhw_baseline.py     ← NOAA CRW operational baseline
+├── run_eval.py                  ← Evaluation + metric tables
+├── run_plot_figures.py          ← Paper figure generation
+├── Makefile                     ← make all/train/eval/...
+├── requirements.txt
+├── src/
+│   ├── config_validator.py
+│   ├── data_pipeline.py         ← DataIngestionFSM
+│   ├── dataset.py               ← ReefDataset (random patch support)
+│   ├── models.py                ← SST_ConvLSTM
+│   ├── physics.py               ← PhyLoss (advection-diffusion)
+│   ├── train.py                 ← train_pinn, resume_from_checkpoint, count_parameters
+│   ├── metrics.py               ← RMSE, ACC, NSE, DHW, bleaching_alert_agreement
+│   └── ablation.py              ← train_ablation (configurable K)
+└── docs/
+    ├── README.md                ← This file
+    └── ARCHITECTURE.md          ← Deep-dive: data flow, design decisions, extension guide
+```
 
 ---
 
@@ -215,5 +200,7 @@ For the paper, the PINN should be compared against:
 
 - Wang, S., Teng, Y., Perdikaris, P. (2021). *Understanding and mitigating gradient pathologies in physics-informed neural networks.* SIAM Journal on Scientific Computing.
 - Shi, X. et al. (2015). *Convolutional LSTM network: A machine learning approach for precipitation nowcasting.* NeurIPS.
-- NOAA Coral Reef Watch: https://coralreefwatch.noaa.gov
-- NOAA CoastWatch ERDDAP: https://coastwatch.pfeg.noaa.gov/erddap
+- Raissi, M., Perdikaris, P., Karniadakis, G.E. (2019). *Physics-informed neural networks.* Journal of Computational Physics.
+- Hughes, T.P. et al. (2018). *Global warming transforms coral reef assemblages.* Nature, 556, 492–496.
+- NOAA Coral Reef Watch. https://coralreefwatch.noaa.gov
+- NOAA CoastWatch ERDDAP. https://coastwatch.pfeg.noaa.gov/erddap

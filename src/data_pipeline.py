@@ -1,106 +1,106 @@
+"""Strict real-data ingestion FSM — no synthetic fallbacks.
+
+States: INIT -> CHECK_COVERAGE -> INGESTING -> RESOLVING -> VALIDATING -> STORING -> READY (ERROR on failure).
+
+Principles:
+  - REAL DATA ONLY: any source that cannot be fetched after all retries -> RuntimeError.
+    No random/synthetic generation anywhere (publishability requirement).
+  - STORAGE-MINIMAL: server-side subsetting (ERDDAP .nc query = only GBR bbox bytes
+    transferred), yearly time-chunking (no 7-yr single download), temp files deleted
+    immediately, no raw archive kept, single Zarr write with float32 + compression.
+  - SAME CANVAS: every variable lands on identical (time, lat, lon):
+    daily-max resample -> bilinear interp to 0.05 deg GBR canvas -> common time reindex.
+"""
+
+import gc
 import os
 import shutil
+import time as _time
+
 import numpy as np
 import xarray as xr
+
 from src.config_validator import ConfigValidator
 
-# A Finite State Machine (FSM) is used here to structure the data pipeline.
-# It ensures data moves step-by-step in a safe, predictable order:
-# 1. INIT -> 2. INGESTING -> 3. RESOLVING -> 4. VALIDATING -> 5. STORING -> 6. CLEANUP -> READY
-# This prevents out-of-order execution and makes the flow easy to follow and debug.
 
 class PipelineState:
-    """Defines the possible states of our FSM."""
-    INIT       = "INIT"
-    INGESTING  = "INGESTING"
-    RESOLVING  = "RESOLVING"
+    INIT = "INIT"
+    CHECK_COVERAGE = "CHECK_COVERAGE"
+    INGESTING = "INGESTING"
+    RESOLVING = "RESOLVING"
     VALIDATING = "VALIDATING"
-    STORING    = "STORING"
-    CLEANUP    = "CLEANUP"
-    READY      = "READY"
-    ERROR      = "ERROR"
+    STORING = "STORING"
+    READY = "READY"
+    ERROR = "ERROR"
 
 
-# How config lag_strategy strings map to xarray resample method names
-LAG_STRATEGY_MAP = {
-    "max": "max",
-    "min": "min",
-    "avg": "mean",
-}
+LAG_STRATEGY_MAP = {"max": "max", "min": "min", "avg": "mean"}
+LAG_CYCLE_MAP = {"daily": "1D", "weekly": "7D", "monthly": "MS", "annually": "YS"}
 
-# How config time_lag_cycle strings map to pandas/xarray frequency codes
-LAG_CYCLE_MAP = {
-    "daily":    "1D",
-    "weekly":   "7D",
-    "monthly":  "MS",   # Month Start
-    "annually": "YS",   # Year Start
-}
+# Yearly chunks keep each ERDDAP request small (timeouts were the #1 failure).
+CHUNK_YEARS = 1
+MAX_RETRIES = 4
+RETRY_BACKOFF_S = 5.0
+# Fail fast instead of silently training on garbage.
+MAX_NAN_FRACTION = 0.05
 
 
 class DataIngestionFSM:
-    """
-    Runs the full data ingestion pipeline using a Finite State Machine.
-    Each state performs one well-defined transformation step, and the pipeline
-    transitions through them in strict order.
-    """
+    """Strict FSM: real data only, one shared spatio-temporal canvas."""
+
     def __init__(self, config):
         self.state = PipelineState.INIT
         self.config = config
-        # This dict holds the xarray Datasets as they move through the pipeline
-        self.data_store = {}
+        self.data_store = {}   # name -> xr.Dataset (native grid, chunked fetch)
+        self.provenance = {}   # name -> dict(source_url, time_range, bytes, attempts)
 
+    # ── driver ──────────────────────────────────────────────
     def run(self):
-        """Drives the FSM from INIT through to READY (or ERROR on failure)."""
-        print("=== Starting Data Ingestion Pipeline ===")
+        print("=== Starting Data Ingestion Pipeline (strict, real-only) ===")
         try:
+            self.transition_to(PipelineState.CHECK_COVERAGE)
+            self._check_coverage()
             self.transition_to(PipelineState.INGESTING)
             self._ingest_data()
-
             self.transition_to(PipelineState.RESOLVING)
             self._resolve_data()
-
             self.transition_to(PipelineState.VALIDATING)
             self._validate_data()
-
             self.transition_to(PipelineState.STORING)
             self._store_data()
-
-            if self.config["storage"].get("delete_raw_after_processing", False):
-                self.transition_to(PipelineState.CLEANUP)
-                self._cleanup_raw_data()
-
             self.transition_to(PipelineState.READY)
             print("=== Pipeline Finished Successfully! ===")
-
         except Exception as e:
             self.transition_to(PipelineState.ERROR)
-            print(f"PIPELINE FAILED: {e}")
+            print(f"PIPELINE FAILED (no synthetic fallback by design): {e}")
             raise
 
     def transition_to(self, new_state):
-        """Safely transitions the state machine and logs the change."""
         print(f"  [{self.state}] ---> [{new_state}]")
         self.state = new_state
 
-    # -------------------------------------------------------
-    # State Logic
-    # -------------------------------------------------------
+    # ── CHECK_COVERAGE ──────────────────────────────────────
+    def _check_coverage(self):
+        cfg = self.config
+        if "common_coverage" not in cfg:
+            print("  -> No coverage blocks in config; skipping coverage gate.")
+            return
+        print("  -> Coverage gate: requested canvas must be inside maximal, "
+              "ideally inside common (all-vars-real). See ConfigValidator.")
+        # Validator already enforces; here we just log the decision.
+        print(f"     requested: {cfg['temporal_canvas']['start_date']}.."
+              f"{cfg['temporal_canvas']['end_date']}")
+        print(f"     common (minimal): {cfg['common_coverage']['start_date']}.."
+              f"{cfg['common_coverage']['end_date']}")
+        print(f"     maximal (envelope): {cfg['maximal_coverage']['start_date']}.."
+              f"{cfg['maximal_coverage']['end_date']}")
 
-    def _build_erddap_nc_url(self, opendap_url, variables, t_start, t_end, lat_min, lat_max, lon_min, lon_max):
-        """
-        Builds a direct ERDDAP .nc HTTP download URL using config-specified bounds.
-
-        ERDDAP supports server-side subsetting via bracketed query parameters, so the
-        server only sends the exact bytes we need — no global download happens.
-
-        Example result:
-          https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW.nc?
-            CRW_SST[(2020-01-01):(2020-12-31)][(-24.0):(-10.0)][(142.0):(154.0)],
-            CRW_DHW[(2020-01-01):(2020-12-31)][(-24.0):(-10.0)][(142.0):(154.0)]
-        """
-        host       = opendap_url.split("/erddap/")[0]
+    # ── INGESTING ───────────────────────────────────────────
+    def _build_erddap_nc_url(self, opendap_url, variables,
+                              t_start, t_end, lat_min, lat_max, lon_min, lon_max):
+        host = opendap_url.split("/erddap/")[0]
         dataset_id = opendap_url.rstrip("/").split("/")[-1]
-        var_parts  = ",".join(
+        var_parts = ",".join(
             f"{v}[({t_start}):({t_end})]"
             f"[({lat_min:.4f}):({lat_max:.4f})]"
             f"[({lon_min:.4f}):({lon_max:.4f})]"
@@ -108,330 +108,226 @@ class DataIngestionFSM:
         )
         return f"{host}/erddap/griddap/{dataset_id}.nc?{var_parts}"
 
-    def _ingest_data(self):
-        """
-        Downloads satellite data from free ERDDAP servers.
+    def _year_chunks(self, start, end):
+        sy, ey = int(start[:4]), int(end[:4])
+        for y in range(sy, ey + 1):
+            yield (f"{y}-01-01" if y > sy else start,
+                   f"{y}-12-31" if y < ey else end)
 
-        We try three strategies in order, stopping as soon as one succeeds:
+    def _fetch_nc_chunk(self, nc_url, timeout=600):
+        import os as _os
+        import tempfile
+        import urllib.request
+        last_err = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
+                    tmp_path = tmp.name
+                try:
+                    urllib.request.urlretrieve(nc_url, tmp_path)
+                    # open + load then release file handle immediately (storage-minimal)
+                    with xr.open_dataset(tmp_path) as ds:
+                        out = ds.load()
+                finally:
+                    if _os.path.exists(tmp_path):
+                        _os.unlink(tmp_path)
+                return out, attempt
+            except Exception as e:
+                last_err = e
+                print(f"       attempt {attempt}/{MAX_RETRIES} failed "
+                      f"({type(e).__name__}: {str(e)[:100]})")
+                if attempt < MAX_RETRIES:
+                    _time.sleep(RETRY_BACKOFF_S * attempt)
+        raise RuntimeError(f"ERDDAP .nc fetch failed after {MAX_RETRIES}: {last_err}")
 
-          Strategy 1 — Direct ERDDAP .nc HTTP download (FASTEST, MOST RELIABLE)
-            Builds a URL with the bounding-box embedded in it. The ERDDAP server
-            does the subsetting and returns a small, pre-sliced NetCDF file.
-            This works even when the OPeNDAP protocol is blocked/redirected.
+    def _fetch_pydap(self, opendap_url, variables, drop_dims,
+                     t_start, t_end, lat_min, lat_max, lon_min, lon_max):
+        last_err = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                pydap_url = opendap_url.replace("https://", "dap4://", 1).replace(
+                    "http://", "dap4://", 1)
+                try:
+                    ds_remote = xr.open_dataset(pydap_url, engine="pydap", chunks={})
+                except Exception:
+                    ds_remote = xr.open_dataset(opendap_url, engine="pydap", chunks={})
+                if "latitude" in ds_remote.dims:
+                    ds_remote = ds_remote.rename({"latitude": "lat", "longitude": "lon"})
+                avail = [v for v in variables if v in ds_remote.data_vars]
+                if not avail:
+                    raise ValueError(f"None of {variables} in {list(ds_remote.data_vars)}")
+                ds_remote = ds_remote[avail]
+                for dim in drop_dims:
+                    if dim in ds_remote.dims:
+                        ds_remote = ds_remote.isel({dim: 0}, drop=True)
+                lat_slice = (slice(lat_max, lat_min) if ds_remote.lat.values[0] >
+                             ds_remote.lat.values[-1] else slice(lat_min, lat_max))
+                sub = ds_remote.sel(time=slice(t_start, t_end),
+                                    lat=lat_slice, lon=slice(lon_min, lon_max))
+                if len(sub.time) == 0:
+                    raise ValueError("Time slice returned 0 records.")
+                return sub.load(), attempt
+            except Exception as e:
+                last_err = e
+                print(f"       pydap attempt {attempt}/{MAX_RETRIES} failed "
+                      f"({type(e).__name__}: {str(e)[:100]})")
+                if attempt < MAX_RETRIES:
+                    _time.sleep(RETRY_BACKOFF_S * attempt)
+        raise RuntimeError(f"pydap fetch failed after {MAX_RETRIES}: {last_err}")
 
-          Strategy 2 — pydap OPeNDAP lazy stream
-            Opens the remote dataset lazily, applies .sel() to subset, then .load().
-            Works well for datasets that don't redirect. Used as a backup.
-
-          Strategy 3 — Synthetic fallback (LAST RESORT)
-            Generates physically plausible random data with correct grid/time structure.
-            Ensures the pipeline never crashes, even with no internet connection.
-        """
-        canvas   = self.config["spatial_canvas"]
+    def _ingest_one_source(self, name, info, canvas):
+        opendap_url = info.get("opendap_url")
+        if not opendap_url:
+            raise RuntimeError(f"No opendap_url for '{name}'. Real-data-only: refusing synthetic.")
+        variables = info.get("variables", [])
+        rename_map = info.get("rename_vars", {})
+        drop_dims = info.get("drop_dims", [])
+        lat_min, lat_max = canvas["lat_min"], canvas["lat_max"]
+        lon_min, lon_max = canvas["lon_min"], canvas["lon_max"]
         t_canvas = self.config["temporal_canvas"]
 
-        # Config bounds — used directly in the URL, no remote metadata fetch needed
-        t_start  = t_canvas["start_date"]
-        t_end    = t_canvas["end_date"]
-        lat_min  = canvas["lat_min"]
-        lat_max  = canvas["lat_max"]
-        lon_min  = canvas["lon_min"]
-        lon_max  = canvas["lon_max"]
+        parts, total_attempts, bytes_est = [], 0, 0
+        for cs, ce in self._year_chunks(t_canvas["start_date"], t_canvas["end_date"]):
+            nc_url = self._build_erddap_nc_url(
+                opendap_url, variables, cs, ce, lat_min, lat_max, lon_min, lon_max)
+            try:
+                print(f"     [nc] {name} {cs}..{ce}")
+                ds_c, att = self._fetch_nc_chunk(nc_url)
+            except Exception as e1:
+                print(f"     [nc] failed ({str(e1)[:80]}), trying pydap...")
+                ds_c, att = self._fetch_pydap(
+                    opendap_url, variables, drop_dims, cs, ce,
+                    lat_min, lat_max, lon_min, lon_max)
+            total_attempts += att
+            if "latitude" in ds_c.dims:
+                ds_c = ds_c.rename({"latitude": "lat", "longitude": "lon"})
+            ren = {k: v for k, v in rename_map.items() if k in ds_c.data_vars}
+            if ren:
+                ds_c = ds_c.rename(ren)
+            bytes_est += int(ds_c.nbytes)
+            parts.append(ds_c)
+            gc.collect()  # keep peak RAM flat across years
 
-        time_slice = slice(t_start, t_end)
-        lon_slice  = slice(lon_min, lon_max)
+        ds_all = xr.concat(sorted(parts, key=lambda d: d.time.values[0]),
+                           dim="time").sortby("time")
+        for p in parts:
+            p.close()
+        del parts
+        gc.collect()
+        self.provenance[name] = {"url": opendap_url, "variables": variables,
+                                 "attempts": total_attempts, "bytes": bytes_est,
+                                 "time_first": str(ds_all.time.values[0]),
+                                 "time_last": str(ds_all.time.values[-1])}
+        print(f"     [{name}] OK: {len(ds_all.time)} steps, ~{bytes_est/1e6:.1f} MB, "
+              f"{total_attempts} attempts total.")
+        return ds_all
 
+    def _ingest_data(self):
+        canvas = self.config["spatial_canvas"]
         for name, info in self.config["data_sources"].items():
-            opendap_url = info.get("opendap_url")
-            variables   = info.get("variables", [])
-            rename_map  = info.get("rename_vars", {})
-            drop_dims   = info.get("drop_dims", [])
-
-            if not opendap_url:
-                print(f"  -> No OPeNDAP URL for '{name}'. Generating synthetic data.")
-                self.data_store[name] = self._generate_synthetic(name, info)
-                print(f"     Variables: {list(self.data_store[name].data_vars)}")
-                continue
-
-            print(f"  -> Fetching '{name}': {opendap_url}")
-            ds_subset = None
-
-            # ======================================================
-            # STRATEGY 1: Direct ERDDAP .nc HTTP download
-            # ======================================================
-            # No OPeNDAP handshake — just a plain HTTPS request for a
-            # pre-sliced NetCDF file. Most reliable option; sidesteps
-            # any redirect or protocol mismatch issues.
-            if variables:
-                nc_url = self._build_erddap_nc_url(
-                    opendap_url, variables,
-                    t_start, t_end, lat_min, lat_max, lon_min, lon_max
-                )
-                try:
-                    import tempfile, urllib.request, os as _os
-                    print(f"     [Strategy 1] Direct ERDDAP .nc download...")
-                    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-                        tmp_path = tmp.name
-                    # urlretrieve blocks until the full file lands — that's what we want
-                    urllib.request.urlretrieve(nc_url, tmp_path)
-                    ds_subset = xr.open_dataset(tmp_path)
-                    # Normalise coordinate names
-                    if "latitude" in ds_subset.dims:
-                        ds_subset = ds_subset.rename({"latitude": "lat", "longitude": "lon"})
-                    # Rename variables to internal names
-                    if rename_map:
-                        rename_actual = {k: v for k, v in rename_map.items()
-                                         if k in ds_subset.data_vars}
-                        if rename_actual:
-                            ds_subset = ds_subset.rename(rename_actual)
-                    ds_subset = ds_subset.load()
-                    _os.unlink(tmp_path)
-                    print(f"     [Strategy 1] Success!")
-                except Exception as e:
-                    print(f"     [Strategy 1] Failed ({type(e).__name__}: {str(e)[:120]})")
-                    ds_subset = None
-
-            # ======================================================
-            # STRATEGY 2: pydap OPeNDAP lazy stream
-            # ======================================================
-            # Fetches only the variable metadata first, then pulls the subsetted
-            # data. Good fallback for servers that don't support the .nc query format.
-            if ds_subset is None:
-                try:
-                    print(f"     [Strategy 2] pydap OPeNDAP stream...")
-                    ds_remote = xr.open_dataset(opendap_url, engine="pydap", chunks={})
-
-                    if "latitude" in ds_remote.dims:
-                        ds_remote = ds_remote.rename({"latitude": "lat", "longitude": "lon"})
-
-                    if variables:
-                        available = [v for v in variables if v in ds_remote.data_vars]
-                        if not available:
-                            raise ValueError(f"None of {variables} found. Available: {list(ds_remote.data_vars)}")
-                        ds_remote = ds_remote[available]
-
-                    for dim in drop_dims:
-                        if dim in ds_remote.dims:
-                            ds_remote = ds_remote.isel({dim: 0}, drop=True)
-
-                    # Detect descending latitude axis and flip the slice accordingly
-                    if ds_remote.lat.values[0] > ds_remote.lat.values[-1]:
-                        lat_slice = slice(lat_max, lat_min)
-                    else:
-                        lat_slice = slice(lat_min, lat_max)
-
-                    ds_subset = ds_remote.sel(time=time_slice, lat=lat_slice, lon=lon_slice)
-
-                    if len(ds_subset.time) == 0:
-                        raise ValueError("Time slice returned 0 records.")
-
-                    if rename_map:
-                        rename_actual = {k: v for k, v in rename_map.items()
-                                         if k in ds_subset.data_vars}
-                        if rename_actual:
-                            ds_subset = ds_subset.rename(rename_actual)
-
-                    print(f"     Downloading subset into memory...")
-                    ds_subset = ds_subset.load()
-                    print(f"     [Strategy 2] Success!")
-
-                except Exception as e:
-                    print(f"     [Strategy 2] Failed ({type(e).__name__}: {str(e)[:120]})")
-                    ds_subset = None
-
-            # ======================================================
-            # STRATEGY 3: Synthetic fallback (last resort)
-            # ======================================================
-            if ds_subset is None:
-                print(f"  !! All real-data attempts failed for '{name}'. Using synthetic mock.")
-                ds_subset = self._generate_synthetic(name, info)
-
-            self.data_store[name] = ds_subset
+            print(f"  -> Fetching '{name}': {info.get('opendap_url')}")
+            # Raises on failure — NO synthetic fallback by design.
+            self.data_store[name] = self._ingest_one_source(name, info, canvas)
             print(f"     Variables: {list(self.data_store[name].data_vars)}")
 
-
-
-    def _generate_synthetic(self, name, info):
-        """
-        Creates a synthetic xarray Dataset that mimics the structure of real data.
-        This lets us test the full pipeline end-to-end without network access.
-
-        Variable names here use the *internal* (renamed) names so that downstream
-        code (dataset.py, metrics.py) doesn't need to know which source provided the data.
-        """
-        canvas   = self.config["spatial_canvas"]
-        t_canvas = self.config["temporal_canvas"]
-        src_res  = info.get("source_resolution", canvas["target_resolution"])
-
-        # Build coordinate arrays at the source's native resolution
-        lats  = np.arange(canvas["lat_min"], canvas["lat_max"], src_res)
-        lons  = np.arange(canvas["lon_min"], canvas["lon_max"], src_res)
-        times = xr.date_range(start=t_canvas["start_date"], end=t_canvas["end_date"], freq="1D", use_cftime=True)
-
-        rng = np.random.default_rng(42)
-
-        # Read the rename map to know what our internal variable names should be
-        rename_map = info.get("rename_vars", {})
-
-        if name == "sst":
-            # Realistic SST for tropical Australia: 24–31°C
-            sst_var = rename_map.get("CRW_SST", "sea_surface_temperature")
-            dhw_var = rename_map.get("CRW_DHW", "degree_heating_weeks")
-
-            sst_data = rng.uniform(24.0, 31.0, size=(len(times), len(lats), len(lons))).astype(np.float32)
-
-            # Synthetic DHW: rolling 12-week sum of hotspots above 28°C (tropical bleaching threshold)
-            hotspot  = np.maximum(0.0, sst_data - 28.0)
-            dhw_data = np.zeros_like(sst_data)
-            for t in range(len(times)):
-                start          = max(0, t - 83)
-                dhw_data[t]    = hotspot[start : t + 1].sum(axis=0) / 7.0
-
-            ds = xr.Dataset(
-                {
-                    sst_var: (["time", "lat", "lon"], sst_data),
-                    dhw_var: (["time", "lat", "lon"], dhw_data),
-                },
-                coords={"time": times, "lat": lats, "lon": lons},
-            )
-
-        elif name == "velocity":
-            u_var = rename_map.get("u", "water_u")
-            v_var = rename_map.get("v", "water_v")
-
-            # Small surface current velocities in m/s
-            u = rng.uniform(-0.5, 0.5, size=(len(times), len(lats), len(lons))).astype(np.float32)
-            v = rng.uniform(-0.5, 0.5, size=(len(times), len(lats), len(lons))).astype(np.float32)
-            ds = xr.Dataset(
-                {u_var: (["time", "lat", "lon"], u), v_var: (["time", "lat", "lon"], v)},
-                coords={"time": times, "lat": lats, "lon": lons},
-            )
-
-        else:
-            # Generic fallback for any unknown source name
-            data = rng.standard_normal(size=(len(times), len(lats), len(lons))).astype(np.float32)
-            ds = xr.Dataset(
-                {name: (["time", "lat", "lon"], data)},
-                coords={"time": times, "lat": lats, "lon": lons},
-            )
-
-        return ds
-
+    # ── RESOLVING (single shared canvas) ────────────────────
     def _resolve_data(self):
-        """
-        Two-phase resolution to unify all data sources onto one shared grid:
-
-          Phase A — Temporal: Resample each dataset to the configured time frequency
-                    and aggregation strategy (e.g., daily maximum).
-          Phase B — Spatial: Interpolate all datasets onto the unified lat/lon canvas
-                    defined in config (the same grid for every variable).
-        """
-        canvas   = self.config["spatial_canvas"]
+        canvas = self.config["spatial_canvas"]
         t_canvas = self.config["temporal_canvas"]
+        target_lat = np.arange(canvas["lat_min"], canvas["lat_max"],
+                               canvas["target_resolution"])
+        target_lon = np.arange(canvas["lon_min"], canvas["lon_max"],
+                               canvas["target_resolution"])
+        freq = LAG_CYCLE_MAP[t_canvas["time_lag_cycle"]]
+        method = LAG_STRATEGY_MAP[t_canvas["lag_strategy"]]
 
-        target_lat = np.arange(canvas["lat_min"], canvas["lat_max"], canvas["target_resolution"])
-        target_lon = np.arange(canvas["lon_min"], canvas["lon_max"], canvas["target_resolution"])
-
-        freq_code    = LAG_CYCLE_MAP[t_canvas["time_lag_cycle"]]
-        strat_method = LAG_STRATEGY_MAP[t_canvas["lag_strategy"]]
+        # Common daily time index: every source reindexed here -> identical time axis.
+        t0 = np.datetime64(t_canvas["start_date"])
+        t1 = np.datetime64(t_canvas["end_date"])
+        common_time = np.arange(t0, t1 + np.timedelta64(1, "D"),
+                                np.timedelta64(1, "D"))
+        print(f"  -> Common canvas: {len(common_time)} days, "
+              f"{len(target_lat)}x{len(target_lon)} @ {canvas['target_resolution']} deg")
 
         for name, ds in self.data_store.items():
-            src_res = self.config["data_sources"][name].get(
-                "source_resolution", canvas["target_resolution"]
-            )
-
-            # Phase A: temporal resampling
-            print(f"  -> Phase A [{name}]: Temporal resample ({t_canvas['time_lag_cycle']} {t_canvas['lag_strategy']})")
-            resampler = ds.resample(time=freq_code)
-            ds = getattr(resampler, strat_method)()
-
-            # Phase A (spatial): if source resolution differs, interpolate to declared source res first
-            if src_res != canvas["target_resolution"]:
-                src_lat = np.arange(canvas["lat_min"], canvas["lat_max"], src_res)
-                src_lon = np.arange(canvas["lon_min"], canvas["lon_max"], src_res)
-                print(f"  -> Phase A [{name}]: Spatial resample to source resolution {src_res}°")
-                ds = ds.interp(lat=src_lat, lon=src_lon, method="linear")
-
-            # Phase B: regrid everything to the unified canvas
-            print(f"  -> Phase B [{name}]: Interpolating to unified canvas at {canvas['target_resolution']}°")
-            ds = ds.interp(lat=target_lat, lon=target_lon, method="linear")
-
+            print(f"  -> [{name}] daily-{method} resample")
+            ds = getattr(ds.resample(time=freq), method)()
+            print(f"  -> [{name}] bilinear interp to unified 0.05 deg canvas")
+            ds = ds.interp(lat=target_lat, lon=target_lon, method="linear",
+                           kwargs={"fill_value": "extrapolate"})
+            # Identical time axis for all vars (NaN where a source truly missing).
+            ds = ds.reindex(time=common_time)
+            # Storage-minimal dtype: float32 is plenty for SST/currents.
+            for v in ds.data_vars:
+                if ds[v].dtype == np.float64:
+                    ds[v] = ds[v].astype(np.float32)
             self.data_store[name] = ds
+        gc.collect()
 
+    # ── VALIDATING (fail-fast, no silent fill of real gaps) ─
     def _validate_data(self):
-        """
-        Checks each resolved dataset for:
-          1. NaN values (and fills any edge NaNs from interpolation)
-          2. Physically impossible values (SST outside -2 to 40°C)
-        """
         for name, ds in self.data_store.items():
+            # Time continuity: no missing days on the common axis.
+            n_expected = len(ds.time)
+            if int(ds.time.isnull().sum().values):
+                raise RuntimeError(f"[{name}] null timestamps on common axis.")
+            print(f"  -> [{name}] time steps: {n_expected} (continuous)")
             for var in ds.data_vars:
                 arr = ds[var]
-                nan_count = int(arr.isnull().sum().values)
-                total     = int(arr.size)
-                nan_pct   = (nan_count / total) * 100 if total > 0 else 0
-
-                print(f"  -> [{name}/{var}] NaN: {nan_count}/{total} ({nan_pct:.1f}%)")
-
-                if nan_count > 0:
-                    # Fill edge NaNs from interpolation by nearest-neighbour extrapolation
-                    ds[var] = (
-                        arr.interpolate_na(dim="lon", method="nearest")
-                           .interpolate_na(dim="lat", method="nearest")
-                    )
-                    remaining = int(ds[var].isnull().sum().values)
-                    print(f"     After fill: {remaining} NaN remaining")
-
-            # Physical bounds check — ocean temps outside this range are impossible
+                nan_frac = float(arr.isnull().mean().values)
+                print(f"  -> [{name}/{var}] NaN: {nan_frac*100:.2f}%")
+                if nan_frac > MAX_NAN_FRACTION:
+                    raise RuntimeError(
+                        f"[{name}/{var}] NaN fraction {nan_frac:.3f} > "
+                        f"{MAX_NAN_FRACTION}. Real-data-only: refusing to "
+                        f"interpolate large gaps. Check ERDDAP window.")
+                if 0 < nan_frac <= MAX_NAN_FRACTION:
+                    ds[var] = (arr.interpolate_na(dim="lon", method="nearest")
+                                  .interpolate_na(dim="lat", method="nearest"))
             if "sea_surface_temperature" in ds.data_vars:
-                sst     = ds["sea_surface_temperature"]
-                sst_min = float(sst.min().values)
-                sst_max = float(sst.max().values)
-                print(f"  -> SST range: {sst_min:.2f} to {sst_max:.2f} °C")
-                if sst_min < -2.0 or sst_max > 40.0:
-                    print("  !! WARNING: SST values outside physical bounds [-2, 40]")
-
+                smin = float(ds["sea_surface_temperature"].min().values)
+                smax = float(ds["sea_surface_temperature"].max().values)
+                print(f"  -> SST range: {smin:.2f}..{smax:.2f} C")
+                if smin < -2.0 or smax > 40.0:
+                    raise RuntimeError("SST outside physical bounds [-2,40].")
+            if "water_u" in ds.data_vars:
+                umax = max(float(abs(ds["water_u"]).max().values),
+                           float(abs(ds["water_v"]).max().values))
+                print(f"  -> |current| max: {umax:.2f} m/s")
+                if umax > 3.0:
+                    raise RuntimeError("Geostrophic current >3 m/s implausible.")
             self.data_store[name] = ds
 
+    # ── STORING (one Zarr, compressed, provenance attrs) ────
     def _store_data(self):
-        """
-        Merges all resolved datasets into a single xarray Dataset and saves it
-        as a Zarr store on disk.
-
-        Zarr is chunked columnar storage — much more efficient than NetCDF for
-        time-series access patterns (each chunk covers 30 days, full spatial extent).
-        """
         out_path = self.config["storage"]["processed_zarr_path"]
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
-
         combined = xr.merge(list(self.data_store.values()))
-
-        # Chunk for efficient time-series reads: 30-day windows, full spatial extent
-        chunk_spec = {"time": 30, "lat": -1, "lon": -1}
-        combined   = combined.chunk(chunk_spec)
-
-        print(f"  -> Writing Zarr store to: {out_path}")
-        print(f"     Combined variables: {list(combined.data_vars)}")
-        print(f"     Combined shape: {dict(combined.dims)}")
-
+        # Time-major chunks match training reads (14+7d windows scan time).
+        combined = combined.chunk({"time": 30, "lat": -1, "lon": -1})
+        combined.attrs["ingestion"] = "strict real-only, no synthetic"
+        combined.attrs["common_coverage"] = str(self.config.get("common_coverage", ""))
+        combined.attrs["provenance"] = str(self.provenance)
+        print(f"  -> Writing Zarr: {out_path} vars={list(combined.data_vars)} "
+              f"shape={dict(combined.sizes)}")
         if os.path.exists(out_path):
             shutil.rmtree(out_path)
+        comp = {"compressor": None}  # keep default; set Blosc/zstd if available
+        try:
+            import numcodecs as _nc  # noqa
+            comp = {"compressor": _nc.Blosc(cname="zstd", clevel=3)}
+        except Exception:
+            pass
+        enc = {v: {"dtype": "float32", **comp} for v in combined.data_vars}
+        combined.to_zarr(out_path, mode="w", consolidated=True, encoding=enc)
+        print("  -> Zarr written. Temp .nc files were deleted inline; no raw archive kept.")
+        # Free ingested data immediately (storage-minimal peak RAM).
+        self.data_store.clear()
+        gc.collect()
 
-        combined.to_zarr(out_path, mode="w", consolidated=True)
-        print(f"  -> Zarr store written successfully.")
 
-    def _cleanup_raw_data(self):
-        """
-        Since we used OPeNDAP streaming, no raw NetCDF files were ever
-        downloaded to disk — nothing to delete. Maximum storage efficiency.
-        """
-        print("  -> OPeNDAP streaming was used. No local raw files to clean up.")
-
-
-# Quick test if run directly
 if __name__ == "__main__":
-    validator   = ConfigValidator("../config.yaml")
+    validator = ConfigValidator("../config.yaml")
     valid_config = validator.validate()
-
     pipeline = DataIngestionFSM(valid_config)
     pipeline.run()

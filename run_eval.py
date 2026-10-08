@@ -33,6 +33,9 @@ from src.metrics import (
     anomaly_correlation,
     nash_sutcliffe,
     compute_dhw_from_sst,
+    compute_monthly_climatology,
+    bleaching_alert_agreement,
+    compute_lead_rmse,
     print_metrics_table,
 )
 
@@ -108,18 +111,26 @@ def main():
     if "degree_heating_weeks" in ds.data_vars:
         print("  Computing Degree Heating Weeks from predictions...")
 
-        # Use the mean SST of the full dataset as the climatology reference
-        clim_mean = float(ds["sea_surface_temperature"].mean().values)
+        # --- Per-pixel monthly climatology from the training split only ---
+        # This is the NOAA CRW definition: each pixel has its own baseline
+        # derived from its long-term monthly mean SST (not the global mean).
+        n_times   = ds.dims["time"]
+        val_start = int(n_times * (1.0 - val_fraction))
+        sst_train_da = ds["sea_surface_temperature"].isel(time=slice(0, val_start))
+        print("  Building per-pixel monthly climatology from training split...")
+        clim12 = compute_monthly_climatology(sst_train_da)  # shape: (12, H, W)
+        # Use the mean across months as a representative scalar-like threshold
+        # (we pass the full (12, H, W) array; compute_dhw_from_sst handles broadcasting)
+        # For simplicity we pick the annual mean of monthly means per pixel → (H, W)
+        clim_per_pixel = clim12.mean(axis=0)   # shape: (H, W)
 
         # Flatten predictions from (N, horizon, 1, H, W) to (T, H, W)
         n, h_out, _, h, w = all_preds.shape
         preds_np = preds_celsius.squeeze(2).numpy().reshape(n * h_out, h, w)
 
-        dhw_pred = compute_dhw_from_sst(preds_np, climatology_mean=clim_mean)
+        dhw_pred = compute_dhw_from_sst(preds_np, climatology_mean=clim_per_pixel)
 
         # Load the matching slice of true NOAA DHW from the Zarr store
-        n_times   = ds.dims["time"]
-        val_start = int(n_times * (1.0 - val_fraction))
         true_dhw  = ds["degree_heating_weeks"].isel(time=slice(val_start, None)).values
 
         # Align lengths before comparing (preds may be slightly shorter due to window edge)
@@ -129,11 +140,45 @@ def main():
 
         metrics["DHW RMSE (°C-weeks)"]   = rmse(dhw_pred_t, dhw_true_t)
         metrics["DHW Correlation (ACC)"]  = anomaly_correlation(dhw_pred_t, dhw_true_t)
+
+        # --- Bleaching Alert Level Agreement (DHW classification metrics) ---
+        dhw_pred_np = dhw_pred[:min_len]
+        dhw_true_np = true_dhw[:min_len]
+
+        for thr in [4.0, 8.0]:
+            alert = bleaching_alert_agreement(dhw_pred_np, dhw_true_np, threshold=thr)
+            label = f"DHW>{int(thr)}"
+            metrics[f"{label} Precision"] = alert["precision"]
+            metrics[f"{label} Recall"]    = alert["recall"]
+            metrics[f"{label} F1"]        = alert["f1"]
+            metrics[f"{label} IoU"]       = alert["iou"]
     else:
         print("  Note: 'degree_heating_weeks' not in Zarr — DHW metrics skipped.")
 
+    # --- Lead-Time RMSE (per forecast day) — needed for Figure 2 ---
+    lead_rmses = compute_lead_rmse(preds_celsius, targets_celsius, horizon)
+    lead_csv_path = os.path.join(checkpoint_dir, "eval_lead_rmse.csv")
+    import csv as _csv
+    with open(lead_csv_path, "w", newline="") as f:
+        writer = _csv.DictWriter(f, fieldnames=["lead_day", "rmse_celsius"])
+        writer.writeheader()
+        for day, r in enumerate(lead_rmses, start=1):
+            writer.writerow({"lead_day": day, "rmse_celsius": f"{r:.6f}"})
+    print(f"  Lead-time RMSE saved to: {lead_csv_path}")
+    for day, r in enumerate(lead_rmses, start=1):
+        metrics[f"RMSE Day {day} (°C)"] = r
+
     # --- Print Results ---
     print_metrics_table(metrics)
+
+    # --- Save all metrics to CSV ---
+    metrics_csv = os.path.join(checkpoint_dir, "eval_metrics.csv")
+    with open(metrics_csv, "w", newline="") as f:
+        writer = _csv.DictWriter(f, fieldnames=["metric", "value"])
+        writer.writeheader()
+        for name, val in metrics.items():
+            writer.writerow({"metric": name, "value": f"{val:.6f}" if isinstance(val, float) else str(val)})
+    print(f"  All metrics saved to: {metrics_csv}")
 
     # --- Comparison Plot ---
     try:

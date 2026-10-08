@@ -16,6 +16,7 @@ class ConfigValidator:
         self._check_spatial_bounds()
         self._check_temporal_bounds()
         self._check_strategies()
+        self._check_coverage()  # requested canvas vs common (minimal) / maximal (envelope)
         print("Validation Successful! All parameters are sensible.\n")
         return self.config
 
@@ -46,12 +47,54 @@ class ConfigValidator:
 
     def _check_strategies(self):
         time = self.config["temporal_canvas"]
-        
+
         valid_cycles = ["daily", "weekly", "monthly", "annually"]
         assert time["time_lag_cycle"] in valid_cycles, f"Lag cycle must be one of {valid_cycles}"
-        
+
         valid_strats = ["min", "max", "avg"]
         assert time["lag_strategy"] in valid_strats, f"Lag strategy must be one of {valid_strats}"
+
+    @staticmethod
+    def _parse_date(s):
+        import datetime as _dt
+        if s in (None, "present"):
+            return _dt.date.today()
+        return _dt.datetime.strptime(s, "%Y-%m-%d").date()
+
+    def _check_coverage(self):
+        """Enforce: requested canvas ⊆ maximal (hard), ⊆ common (strict warning).
+
+        common_coverage  = minimal intersection, all vars real (velocity-limited).
+        maximal_coverage = widest envelope, SST-only extension allowed.
+        """
+        if "common_coverage" not in self.config or "maximal_coverage" not in self.config:
+            return  # legacy config without coverage blocks
+        space, tcanvas = self.config["spatial_canvas"], self.config["temporal_canvas"]
+        common, maximal = self.config["common_coverage"], self.config["maximal_coverage"]
+
+        req_start = self._parse_date(tcanvas["start_date"])
+        req_end = self._parse_date(tcanvas["end_date"])
+        max_start = self._parse_date(maximal["start_date"])
+        max_end = self._parse_date(maximal["end_date"])
+        assert max_start <= req_start < req_end <= max_end, (
+            f"Requested [{req_start},{req_end}] outside maximal "
+            f"[{max_start},{max_end}]. No source covers that range."
+        )
+        assert (maximal["lat_min"] <= space["lat_min"] < space["lat_max"] <= maximal["lat_max"]
+                and maximal["lon_min"] <= space["lon_min"] < space["lon_max"] <= maximal["lon_max"]), \
+            "Requested spatial canvas outside maximal_coverage."
+
+        com_start = self._parse_date(common["start_date"])
+        com_end = self._parse_date(common["end_date"])
+        inside = (com_start <= req_start and req_end <= com_end
+                  and common["lat_min"] <= space["lat_min"]
+                  and space["lat_max"] <= common["lat_max"]
+                  and common["lon_min"] <= space["lon_min"]
+                  and space["lon_max"] <= common["lon_max"])
+        if not inside:
+            print(f"  !! WARNING: requested canvas outside common_coverage "
+                  f"[{com_start},{com_end}]. Velocity missing there by design "
+                  f"(SST-only extension). Strict PINN runs should stay inside common.")
 
 # Quick test if run directly
 if __name__ == "__main__":
