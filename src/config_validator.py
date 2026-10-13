@@ -1,5 +1,6 @@
 import yaml
 import datetime
+from src.grid import build_axis
 
 # It's important to validate the configuration before running heavy data operations.
 # This class checks that spatial and temporal bounds make logical sense
@@ -35,6 +36,8 @@ class ConfigValidator:
         # Note: GBR is around 142 to 154, so it falls in standard bounds.
         assert -180 <= space["lon_min"] <= 180 or 0 <= space["lon_min"] <= 360, "lon_min out of logical bounds"
         assert space["lon_min"] < space["lon_max"], "lon_min must be strictly less than lon_max"
+        build_axis(space["lat_min"], space["lat_max"], space["target_resolution"])
+        build_axis(space["lon_min"], space["lon_max"], space["target_resolution"])
 
     def _check_temporal_bounds(self):
         time = self.config["temporal_canvas"]
@@ -89,6 +92,11 @@ class ConfigValidator:
         val = pipe.get("validation", {})
         assert 0 <= val.get("max_nan_fraction", 0) <= 1, "validation.max_nan_fraction in [0,1]"
         assert val.get("sst_min", -99) < val.get("sst_max", 99), "sst_min < sst_max"
+        valid_aggregations = {"max", "min", "mean", "avg", "last", "first"}
+        aggregations = ing.get("aggregation", {})
+        assert set(aggregations.values()) <= valid_aggregations, (
+            "ingestion.aggregation contains an unsupported reducer"
+        )
 
     def _check_coverage(self):
         """Enforce: requested canvas ⊆ maximal (hard), ⊆ common (strict warning).
