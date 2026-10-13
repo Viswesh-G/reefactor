@@ -404,7 +404,45 @@ class DataIngestionFSM:
                 if ds[v].dtype == np.float64:
                     ds[v] = ds[v].astype(np.float32)
             self.data_store[name] = ds
+        self._validate_unified_canvas(target_lat, target_lon, common_time)
         gc.collect()
+
+    def _validate_unified_canvas(self, target_lat, target_lon, common_time):
+        """Require every stored variable to share one exact spatiotemporal canvas."""
+        expected_dims = ("time", "lat", "lon")
+        required = {"sea_surface_temperature", "degree_heating_weeks",
+                    "water_u", "water_v"}
+        seen = set()
+
+        for source_name, ds in self.data_store.items():
+            for variable in ds.data_vars:
+                seen.add(variable)
+                if ds[variable].dims != expected_dims:
+                    raise RuntimeError(
+                        f"[{source_name}/{variable}] dims {ds[variable].dims} "
+                        f"do not match required {expected_dims}."
+                    )
+                for dim, expected in (
+                    ("time", common_time), ("lat", target_lat), ("lon", target_lon)
+                ):
+                    actual = ds[dim].values
+                    if dim == "time":
+                        actual = actual.astype("datetime64[ns]")
+                        expected = expected.astype("datetime64[ns]")
+                    if not np.array_equal(actual, expected):
+                        raise RuntimeError(
+                            f"[{source_name}/{variable}] coordinate '{dim}' "
+                            "does not match the canonical canvas."
+                        )
+
+        missing = required - seen
+        if missing:
+            raise RuntimeError(
+                "Unified canvas is incomplete; missing required variables: "
+                + ", ".join(sorted(missing))
+            )
+        print("  -> Unified canvas verified: all variables share "
+              "(time, lat, lon) coordinates.")
 
     # ── VALIDATING (fail-fast, no silent fill of real gaps) ─
     def _validate_data(self):
@@ -460,6 +498,16 @@ class DataIngestionFSM:
         out_path = self.config["storage"]["processed_zarr_path"]
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         combined = xr.merge(list(self.data_store.values()))
+        if tuple(combined.dims) != ("time", "lat", "lon"):
+            raise RuntimeError(
+                f"Stored dataset dims {tuple(combined.dims)} are not "
+                "(time, lat, lon)."
+            )
+        for variable in combined.data_vars:
+            if combined[variable].dims != ("time", "lat", "lon"):
+                raise RuntimeError(
+                    f"Stored variable '{variable}' is not 3-D on the unified canvas."
+                )
         # Time-major chunks match training reads (14+7d windows scan time).
         combined = combined.chunk({"time": self.zarr_chunk_time, "lat": -1, "lon": -1})
         combined.attrs["ingestion"] = "strict real-only, no synthetic"

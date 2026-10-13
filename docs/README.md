@@ -57,7 +57,7 @@ make install
 ```bash
 make ingest
 ```
-Streams from free public ERDDAP servers over OPeNDAP in bounded monthly chunks. Only the GBR bounding box is transferred. Runs in **strict real-only mode**: if a source is unreachable it raises rather than generating synthetic data. A list of mirror URLs is tried per chunk, with gentle pacing between requests. Interpolation never extrapolates beyond source coverage, and each variable has an explicit temporal reducer.
+Streams from free public ERDDAP servers over OPeNDAP in bounded monthly chunks. Only the GBR bounding box is transferred. Runs in **strict real-only mode**: if a source is unreachable it raises rather than generating synthetic data. A list of mirror URLs is tried per chunk, with gentle pacing between requests. Interpolation never extrapolates beyond source coverage, and each variable has an explicit temporal reducer. Before writing Zarr, the pipeline verifies that SST, CRW DHW, and currents all share exactly one `(time, lat, lon)` canvas; training refuses stores that do not satisfy this contract.
 
 | Variable | Source | ERDDAP ID |
 |---|---|---|
