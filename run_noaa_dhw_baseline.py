@@ -5,10 +5,11 @@ This is Baseline #1 in the paper: the current operational standard that the
 PINN is benchmarked against. It does NOT use any machine learning.
 
 The NOAA Coral Reef Watch (CRW) DHW algorithm:
-    1. For each pixel, compute the bleaching threshold = local monthly mean SST + 1°C
-    2. For each day, compute the hotspot = max(0, SST − threshold)
-    3. Accumulate hotspots over the trailing 12 weeks (84 days) and divide by 7
-    → The result is DHW in °C-weeks
+    1. For each pixel, MMM = warmest of the 12 monthly-mean SSTs; threshold = MMM + 1°C
+    2. Coral Bleaching HotSpot = SST − MMM (negative allowed)
+    3. Accumulate the FULL HotSpot only on days it reaches the threshold (HotSpot >= 1),
+       over the trailing 12 weeks (84 days), then divide by 7 → DHW in °C-weeks
+    (e.g. HotSpots 1.0, 2.0, 0.8, 1.2 twice-weekly → (1.0+2.0+1.2)*0.5 = 2.1 °C-weeks)
 
 This script applies that algorithm directly to the raw satellite SST already
 stored in the Zarr store, then computes the same metrics (RMSE, ACC) against the
@@ -37,7 +38,8 @@ from src.metrics import (
     anomaly_correlation,
     nash_sutcliffe,
     compute_dhw_from_sst,
-    compute_monthly_climatology,
+    compute_mmm_climatology,
+    load_crw_mmm,
     print_metrics_table,
 )
 
@@ -72,13 +74,15 @@ def main():
     print(f"  Total time steps: {n_times}")
     print(f"  Val split starts at index: {val_start} ({val_fraction*100:.0f}% held out)\n")
 
-    # --- Build per-pixel monthly climatology from training split ONLY ---
-    # Using training split stats prevents any information leakage from the val period.
-    print("Building per-pixel monthly SST climatology from training split...")
+    # --- Build per-pixel monthly climatology (prefer TRUE CRW MMM sidecar) ---
+    # Using the same MMM NOAA used makes the DHW comparison apples-to-apples.
     sst_train_da = ds["sea_surface_temperature"].isel(time=slice(0, val_start))
-    clim12 = compute_monthly_climatology(sst_train_da)   # shape: (12, H, W)
-    # Annual mean of monthly means → single (H, W) threshold map per pixel
-    clim_per_pixel = clim12.mean(axis=0)                  # shape: (H, W)
+    clim_per_pixel = load_crw_mmm(config)
+    if clim_per_pixel is not None:
+        print("  Using TRUE CRW MMM sidecar (climatology-matched).")
+    else:
+        print("Building per-pixel MMM climatology (max of monthly means) from train split...")
+        clim_per_pixel = compute_mmm_climatology(sst_train_da)  # (H, W) NOAA MMM
     print(f"  Climatology shape: {clim_per_pixel.shape}")
     print(f"  Mean threshold across grid: {clim_per_pixel.mean():.2f} °C (+1°C bleach offset)\n")
 

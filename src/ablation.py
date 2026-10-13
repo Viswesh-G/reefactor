@@ -28,6 +28,7 @@ import torch.optim as optim
 
 from src.models import SST_ConvLSTM
 from src.physics import PhyLoss
+from src.reproducibility import get_device
 
 
 def train_ablation(
@@ -45,7 +46,7 @@ def train_ablation(
                           dT/dt + u·∂T/∂x + v·∂T/∂y = 0
                           (Diffusion contribution is ablated)
 
-    When ablation_K=0.05: Full advection-diffusion (same as PhyConvLSTM).
+    When ablation_K=500.0: Full advection-diffusion (same as PhyConvLSTM).
 
     The training loop is identical to train_pinn() — same EMA balancing,
     same gradient clipping — so results are directly comparable.
@@ -68,15 +69,23 @@ def train_ablation(
         wd         = train_cfg.get("weight_decay", 1e-4)
         alpha      = train_cfg.get("ema_alpha", 0.9)
         grad_clip  = train_cfg.get("gradient_clip", 1.0)
+        physics_dx = train_cfg.get("physics_dx", 5500.0)
+        physics_dy = train_cfg.get("physics_dy", 5500.0)
+        physics_dt = train_cfg.get("physics_dt", 86400.0)
     else:
         epochs, lr, wd, alpha, grad_clip = 50, 1e-3, 1e-4, 0.9, 1.0
+        physics_dx, physics_dy, physics_dt = 5500.0, 5500.0, 86400.0
 
     os.makedirs(checkpoint_dir, exist_ok=True)
 
+    device = get_device(config) if config is not None else "cpu"
+    model.to(device)
+
     optimizer         = optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
     criterion_data    = nn.MSELoss()
-    # ablation_K overrides whatever is in config
-    criterion_physics = PhyLoss(K=ablation_K)
+    # ablation_K overrides whatever is in config (SI m^2/s; 0.0 = advection-only)
+    criterion_physics = PhyLoss(K=ablation_K, dx=physics_dx, dy=physics_dy, dt=physics_dt)
+    criterion_physics.to(device)
 
     lambda_data = 1.0
     lambda_phy  = 1.0
@@ -100,6 +109,10 @@ def train_ablation(
 
         for batch in train_loader:
             x_sst, y_true_sst, u_vel, v_vel = batch
+            x_sst      = x_sst.to(device)
+            y_true_sst = y_true_sst.to(device)
+            u_vel      = u_vel.to(device)
+            v_vel      = v_vel.to(device)
             optimizer.zero_grad()
 
             preds     = model(x_sst)
@@ -114,7 +127,9 @@ def train_ablation(
             max_grad_data  = torch.max(torch.abs(grad_data))
             mean_grad_phy  = torch.mean(torch.abs(grad_phy))
             lambda_hat     = max_grad_data / (mean_grad_phy + 1e-8)
-            lambda_phy     = (1 - alpha) * lambda_phy + alpha * lambda_hat.item()
+            # EMA momentum on old (α=0.9 smooth); skip non-finite updates.
+            if torch.isfinite(lambda_hat):
+                lambda_phy = alpha * lambda_phy + (1.0 - alpha) * lambda_hat.item()
 
             loss_total = (lambda_data * loss_data) + (lambda_phy * loss_phy)
             loss_total.backward()
@@ -136,6 +151,7 @@ def train_ablation(
             with torch.no_grad():
                 for batch in val_loader:
                     x_sst, y_true_sst, _, _ = batch
+                    x_sst, y_true_sst = x_sst.to(device), y_true_sst.to(device)
                     preds      = model(x_sst)
                     val_total += criterion_data(preds, y_true_sst).item()
             val_loss = val_total / len(val_loader)

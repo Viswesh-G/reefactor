@@ -16,6 +16,7 @@ class ConfigValidator:
         self._check_spatial_bounds()
         self._check_temporal_bounds()
         self._check_strategies()
+        self._check_pipeline_consistency()  # pipeline block mirrors canvases + sane params
         self._check_coverage()  # requested canvas vs common (minimal) / maximal (envelope)
         print("Validation Successful! All parameters are sensible.\n")
         return self.config
@@ -60,6 +61,34 @@ class ConfigValidator:
         if s in (None, "present"):
             return _dt.date.today()
         return _dt.datetime.strptime(s, "%Y-%m-%d").date()
+
+    def _check_pipeline_consistency(self):
+        """Pipeline block is the control panel — it must agree with canvases."""
+        pipe = self.config.get("pipeline", {})
+        if not pipe or "time_start" not in pipe:
+            return  # legacy config without expanded pipeline block
+        space, tcanvas = self.config["spatial_canvas"], self.config["temporal_canvas"]
+        assert pipe["time_start"] == tcanvas["start_date"], \
+            f"pipeline.time_start {pipe['time_start']} != temporal_canvas.start_date {tcanvas['start_date']}"
+        assert pipe["time_end"] == tcanvas["end_date"], \
+            f"pipeline.time_end {pipe['time_end']} != temporal_canvas.end_date {tcanvas['end_date']}"
+        assert pipe.get("time_lag_cycle") == tcanvas.get("time_lag_cycle"), \
+            "pipeline.time_lag_cycle must match temporal_canvas.time_lag_cycle"
+        assert pipe.get("lag_strategy") == tcanvas.get("lag_strategy"), \
+            "pipeline.lag_strategy must match temporal_canvas.lag_strategy"
+        for k in ("lat_min", "lat_max", "lon_min", "lon_max", "target_resolution"):
+            assert pipe[k] == space[k], f"pipeline.{k} {pipe[k]} != spatial_canvas.{k} {space[k]}"
+        assert pipe.get("strict_real_only") is True and pipe.get("allow_synthetic") is False, \
+            "pipeline must be strict real-only (strict_real_only=true, allow_synthetic=false)"
+        ing = pipe.get("ingestion", {})
+        assert ing.get("chunk_years", 1) >= 1, "ingestion.chunk_years must be >= 1"
+        assert ing.get("max_retries", 1) >= 1, "ingestion.max_retries must be >= 1"
+        assert ing.get("fetch_order", ["erddap_nc"])[:1] == ["erddap_nc"] or \
+            set(ing.get("fetch_order", [])) <= {"erddap_nc", "pydap"}, \
+            "ingestion.fetch_order must be subset of [erddap_nc, pydap]"
+        val = pipe.get("validation", {})
+        assert 0 <= val.get("max_nan_fraction", 0) <= 1, "validation.max_nan_fraction in [0,1]"
+        assert val.get("sst_min", -99) < val.get("sst_max", 99), "sst_min < sst_max"
 
     def _check_coverage(self):
         """Enforce: requested canvas ⊆ maximal (hard), ⊆ common (strict warning).

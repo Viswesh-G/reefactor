@@ -32,3 +32,5 @@ data/
 
 
 the-idea.md
+*.txt
+docs/

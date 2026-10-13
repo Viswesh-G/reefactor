@@ -7,7 +7,7 @@ physics weight forced to zero (lambda_phy = 0). This is Baseline #2 in the paper
     "Pure ConvLSTM — same architecture, MSE loss only, no physics penalty"
 
 Purpose: isolate the contribution of the physics constraint by comparing
-PhyConvLSTM vs. this baseline on the 2023 held-out test year.
+PhyConvLSTM vs. this baseline on the held-out validation period.
 
 Usage:
     python run_baseline.py
@@ -28,6 +28,7 @@ from torch.utils.data import DataLoader
 from src.config_validator import ConfigValidator
 from src.models import SST_ConvLSTM
 from src.dataset import ReefDataset
+from src.reproducibility import set_seed, get_seed, get_device
 
 
 def train_baseline(model, train_loader, val_loader, config, checkpoint_dir):
@@ -42,6 +43,8 @@ def train_baseline(model, train_loader, val_loader, config, checkpoint_dir):
     grad_clip  = train_cfg.get("gradient_clip", 1.0)
 
     os.makedirs(checkpoint_dir, exist_ok=True)
+    device = get_device(config)
+    model.to(device)
 
     optimizer    = optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
     criterion    = nn.MSELoss()
@@ -65,6 +68,7 @@ def train_baseline(model, train_loader, val_loader, config, checkpoint_dir):
         epoch_loss = 0.0
         for batch in train_loader:
             x_sst, y_true_sst, _, _ = batch   # velocities ignored (no physics loss)
+            x_sst, y_true_sst = x_sst.to(device), y_true_sst.to(device)
             optimizer.zero_grad()
             preds     = model(x_sst)
             loss      = criterion(preds, y_true_sst)
@@ -85,6 +89,7 @@ def train_baseline(model, train_loader, val_loader, config, checkpoint_dir):
             with torch.no_grad():
                 for batch in val_loader:
                     x_sst, y_true_sst, _, _ = batch
+                    x_sst, y_true_sst = x_sst.to(device), y_true_sst.to(device)
                     preds      = model(x_sst)
                     val_total += criterion(preds, y_true_sst).item()
 
@@ -132,6 +137,7 @@ def main():
 
     validator = ConfigValidator("config.yaml")
     config    = validator.validate()
+    set_seed(get_seed(config))
 
     zarr_path  = config["storage"]["processed_zarr_path"]
     ds_cfg     = config.get("dataset", {})

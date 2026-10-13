@@ -2,12 +2,15 @@
 run_all.py — Full REEFS_ML Pipeline Orchestrator
 
 Executes the entire research pipeline in strict order:
-    1. Ingest   → stream NOAA + NESDIS satellite data → write Zarr
-    2. Train    → PhyConvLSTM (physics-constrained)
-    3. Baseline → Vanilla ConvLSTM (no physics)
-    4. NOAA DHW → Operational algorithm baseline
-    5. Eval     → PINN evaluation on held-out 2023 year
-    6. Plot     → Generate all 4 paper figures
+    1. Ingest      → stream NOAA + NESDIS satellite data → write Zarr
+    2. Derive MMM  → recover the true NOAA CRW MMM climatology sidecar
+    3. Train       → PhyConvLSTM (physics-constrained, learns K)
+    4. Baseline    → Vanilla ConvLSTM (no physics)
+    5. Ablation    → advection-only (no diffusion)
+    6. NOAA DHW    → Operational algorithm baseline
+    7. Eval        → PINN evaluation on the held-out validation period
+    8. Early warn  → physics-residual early-warning precursor analysis
+    9. Plot        → Generate all paper figures
 
 Usage:
     python run_all.py              # Full pipeline
@@ -15,7 +18,7 @@ Usage:
     python run_all.py --from eval  # Skip training, start from evaluation
 
 Flags:
-    --from [ingest|train|baseline|noaa|eval|plot]
+    --from [ingest|derive_mmm|train|baseline|ablation|noaa|eval|early_warning|plot]
     --skip-ingest   Skip ingestion (if Zarr already exists)
     --skip-train    Skip training (if checkpoints already exist)
 """
@@ -29,8 +32,9 @@ ZARR_PATH       = "data/processed/unified_gbr_canvas.zarr"
 PINN_CKPT       = "data/checkpoints/best_model.pt"
 BASELINE_CKPT   = "data/checkpoints/baseline/baseline_best_model.pt"
 ABLATION_CKPT   = "data/checkpoints/ablation/ablation_best_model.pt"
+MMM_PATH        = "data/processed/crw_mmm.npz"
 
-PHASE_ORDER = ["ingest", "train", "baseline", "ablation", "noaa", "eval", "plot"]
+PHASE_ORDER = ["ingest", "derive_mmm", "train", "baseline", "ablation", "noaa", "eval", "early_warning", "plot"]
 
 
 def banner(phase: str):
@@ -67,6 +71,11 @@ def phase_ingest():
     valid_config = validator.validate()
     pipeline     = DataIngestionFSM(valid_config)
     pipeline.run()
+
+
+def phase_derive_mmm():
+    import run_derive_mmm
+    run_derive_mmm.main()
 
 
 def phase_train():
@@ -120,6 +129,11 @@ def phase_eval():
     run_eval.main()
 
 
+def phase_early_warning():
+    import run_early_warning
+    run_early_warning.main()
+
+
 def phase_plot():
     import run_plot_figures
     run_plot_figures.main()
@@ -140,6 +154,12 @@ def main():
                         help="Skip PhyConvLSTM training")
     args = parser.parse_args()
 
+    # One seed for the whole run so every phase is reproducible.
+    from src.config_validator import ConfigValidator
+    from src.reproducibility import set_seed, get_seed
+    _cfg = ConfigValidator("config.yaml").validate()
+    set_seed(get_seed(_cfg))
+
     start_idx = PHASE_ORDER.index(args.start_from)
 
     print("╔══════════════════════════════════════════════════════╗")
@@ -155,6 +175,9 @@ def main():
         ("ingest",   phase_ingest,
          start_idx > 0 or (args.skip_ingest and os.path.exists(ZARR_PATH)),
          f"Zarr already exists at {ZARR_PATH}" if os.path.exists(ZARR_PATH) else "Skipped by flag"),
+        ("derive_mmm", phase_derive_mmm,
+         start_idx > PHASE_ORDER.index("derive_mmm") or os.path.exists(MMM_PATH),
+         f"MMM sidecar already exists at {MMM_PATH}"),
         ("train",    phase_train,
          start_idx > PHASE_ORDER.index("train") or args.skip_train,
          "checkpoint already exists" if os.path.exists(PINN_CKPT) else "Skipped by flag"),
@@ -169,6 +192,9 @@ def main():
          "Skipped (start_from is later)"),
         ("eval",     phase_eval,
          start_idx > PHASE_ORDER.index("eval"),
+         "Skipped (start_from is later)"),
+        ("early_warning", phase_early_warning,
+         start_idx > PHASE_ORDER.index("early_warning"),
          "Skipped (start_from is later)"),
         ("plot",     phase_plot,
          False, ""),

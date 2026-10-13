@@ -12,7 +12,7 @@ Produces the four key figures described in the-idea.md:
     Figure 3: λ_phy convergence plot over training epochs
               (physics weight trajectory, loaded from training_log.csv)
 
-    Figure 4: 2023 bleaching event spatial overlay
+    Figure 4: Bleaching alert overlay for the peak stress period
               (DHW > 4 and DHW > 8 alert contours over GBR map)
 
 Usage:
@@ -32,10 +32,13 @@ from torch.utils.data import DataLoader
 from src.config_validator import ConfigValidator
 from src.models import SST_ConvLSTM
 from src.dataset import ReefDataset
+from src.reproducibility import set_seed, get_seed
 from src.metrics import (
     rmse,
     compute_dhw_from_sst,
-    compute_monthly_climatology,
+    compute_mmm_climatology,
+    load_crw_mmm,
+    reconstruct_continuous_forecast,
 )
 
 
@@ -82,7 +85,7 @@ def collect_preds(model, val_loader, val_dataset):
 # ────────────────────────────────────────────────────────────────
 
 def plot_figure1(ds, pinn_preds_np, baseline_preds_np, clim_per_pixel,
-                 val_start, out_dir):
+                 val_start, lookback, out_dir):
     """
     Three-panel DHW map comparison at the last validation time step:
         Left:   NOAA Ground-Truth DHW
@@ -95,13 +98,13 @@ def plot_figure1(ds, pinn_preds_np, baseline_preds_np, clim_per_pixel,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    dhw_true_full = ds["degree_heating_weeks"].isel(time=slice(val_start, None)).values
+    dhw_true_full = ds["degree_heating_weeks"].isel(time=slice(val_start + lookback, None)).values
 
     dhw_pinn     = compute_dhw_from_sst(pinn_preds_np,     clim_per_pixel)
     dhw_baseline = compute_dhw_from_sst(baseline_preds_np, clim_per_pixel)
 
     min_len = min(dhw_true_full.shape[0], dhw_pinn.shape[0], dhw_baseline.shape[0])
-    true_map = dhw_true_full[-1]
+    true_map = dhw_true_full[min_len - 1]
     pinn_map = dhw_pinn[min_len - 1]
     base_map = dhw_baseline[min_len - 1]
 
@@ -233,23 +236,23 @@ def plot_figure3(pinn_log_path, baseline_log_path, out_dir):
 
 
 # ────────────────────────────────────────────────────────────────
-# Figure 4: 2023 bleaching event spatial overlay
+# Figure 4: Bleaching alert overlay for the validation period peak stress
 # ────────────────────────────────────────────────────────────────
 
-def plot_figure4(ds, pinn_preds_np, clim_per_pixel, val_start, out_dir):
+def plot_figure4(ds, pinn_preds_np, clim_per_pixel, val_start, lookback, out_dir):
     """
     Bleaching alert level overlay for the peak stress period in the validation year.
     Shows Alert Level 1 (DHW > 4) and Alert Level 2 (DHW > 8) regions,
     matching the NOAA Bleaching Alert Area product convention.
     """
-    print("  → Figure 4: 2023 bleaching event alert overlay")
+    print("  → Figure 4: Validation-period bleaching alert overlay")
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     dhw_pred = compute_dhw_from_sst(pinn_preds_np, clim_per_pixel)
-    dhw_true = ds["degree_heating_weeks"].isel(time=slice(val_start, None)).values
+    dhw_true = ds["degree_heating_weeks"].isel(time=slice(val_start + lookback, None)).values
 
     # Find the time step with the highest spatial mean DHW (peak stress)
     peak_idx  = int(np.nanmean(dhw_pred, axis=(1, 2)).argmax())
@@ -261,7 +264,7 @@ def plot_figure4(ds, pinn_preds_np, clim_per_pixel, val_start, out_dir):
 
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
     fig.suptitle(
-        "Figure 4 — 2023 GBR Bleaching Event: Alert Level Overlay\n"
+        "Figure 4 — GBR Bleaching Event: Alert Level Overlay\n"
         "(Red = Alert Level 1, DHW > 4 °C-wks; Dark Red = Alert Level 2, DHW > 8 °C-wks)",
         fontsize=11, fontweight="bold"
     )
@@ -296,6 +299,7 @@ def main():
 
     validator = ConfigValidator("config.yaml")
     config    = validator.validate()
+    set_seed(get_seed(config))
 
     zarr_path      = config["storage"]["processed_zarr_path"]
     checkpoint_dir = config["storage"]["checkpoint_dir"]
@@ -319,16 +323,17 @@ def main():
     n_times   = ds.dims["time"]
     val_start = int(n_times * (1.0 - val_fraction))
 
-    # --- Per-pixel climatology (training split only) ---
+    # --- Per-pixel climatology (prefer TRUE CRW MMM; else training split) ---
     sst_train_da   = ds["sea_surface_temperature"].isel(time=slice(0, val_start))
-    clim12         = compute_monthly_climatology(sst_train_da)
-    clim_per_pixel = clim12.mean(axis=0)
+    clim_per_pixel = load_crw_mmm(config)
+    if clim_per_pixel is None:
+        clim_per_pixel = compute_mmm_climatology(sst_train_da)  # (H, W)
 
     # --- Load validation dataset ---
     try:
         val_dataset = ReefDataset(
             zarr_path, lookback=lookback, horizon=horizon,
-            split="val", val_fraction=val_fraction, patch_size=patch_size,
+            split="val", val_fraction=val_fraction, patch_size=None,
         )
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=0)
     except Exception as e:
@@ -349,7 +354,8 @@ def main():
         pinn_model = SST_ConvLSTM(in_channels=1, hidden_dim=[32, 64], out_steps=horizon)
         pinn_model.load_state_dict(torch.load(pinn_ckpt, map_location="cpu"))
         pinn_preds, pinn_targets = collect_preds(pinn_model, val_loader, val_dataset)
-        pinn_preds_np = pinn_preds.squeeze(2).numpy().reshape(-1, *pinn_preds.shape[-2:])
+        # Continuous daily forecast timeline (average overlapping 7-day windows).
+        pinn_preds_np = reconstruct_continuous_forecast(pinn_preds).squeeze(1).numpy()
     else:
         print(f"⚠ PhyConvLSTM checkpoint not found at {pinn_ckpt}. Run `make train` first.")
 
@@ -358,7 +364,7 @@ def main():
         base_model = SST_ConvLSTM(in_channels=1, hidden_dim=[32, 64], out_steps=horizon)
         base_model.load_state_dict(torch.load(baseline_ckpt, map_location="cpu"))
         base_preds, base_targets = collect_preds(base_model, val_loader, val_dataset)
-        base_preds_np = base_preds.squeeze(2).numpy().reshape(-1, *base_preds.shape[-2:])
+        base_preds_np = reconstruct_continuous_forecast(base_preds).squeeze(1).numpy()
     else:
         print(f"⚠ Baseline checkpoint not found at {baseline_ckpt}. Run `make baseline` first.")
 
@@ -366,7 +372,7 @@ def main():
     print("\nGenerating figures...")
 
     if pinn_available and baseline_available and "degree_heating_weeks" in ds.data_vars:
-        plot_figure1(ds, pinn_preds_np, base_preds_np, clim_per_pixel, val_start, out_dir)
+        plot_figure1(ds, pinn_preds_np, base_preds_np, clim_per_pixel, val_start, lookback, out_dir)
     else:
         print("  ⚠ Figure 1 skipped (need both models trained + DHW in Zarr)")
 
@@ -383,7 +389,7 @@ def main():
         print("  ⚠ Figure 3 skipped (no training logs found — run make train / make baseline)")
 
     if pinn_available and "degree_heating_weeks" in ds.data_vars:
-        plot_figure4(ds, pinn_preds_np, clim_per_pixel, val_start, out_dir)
+        plot_figure4(ds, pinn_preds_np, clim_per_pixel, val_start, lookback, out_dir)
     else:
         print("  ⚠ Figure 4 skipped (need PhyConvLSTM trained + DHW in Zarr)")
 

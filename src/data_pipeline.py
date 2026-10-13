@@ -37,12 +37,11 @@ class PipelineState:
 LAG_STRATEGY_MAP = {"max": "max", "min": "min", "avg": "mean"}
 LAG_CYCLE_MAP = {"daily": "1D", "weekly": "7D", "monthly": "MS", "annually": "YS"}
 
-# Yearly chunks keep each ERDDAP request small (timeouts were the #1 failure).
-CHUNK_YEARS = 1
-MAX_RETRIES = 4
-RETRY_BACKOFF_S = 5.0
-# Fail fast instead of silently training on garbage.
-MAX_NAN_FRACTION = 0.05
+# Defaults if pipeline block missing (legacy). Canonical values live in
+# config.yaml >> pipeline.ingestion / pipeline.validation.
+_DEFAULTS = {"chunk_years": 1, "max_retries": 4, "retry_backoff_s": 5.0,
+             "fetch_timeout_s": 600, "max_nan_fraction": 0.05,
+             "zarr_chunk_time": 30, "pacing_s": 0.0}
 
 
 class DataIngestionFSM:
@@ -53,6 +52,38 @@ class DataIngestionFSM:
         self.config = config
         self.data_store = {}   # name -> xr.Dataset (native grid, chunked fetch)
         self.provenance = {}   # name -> dict(source_url, time_range, bytes, attempts)
+        pipe = config.get("pipeline", {})
+        ing, val = pipe.get("ingestion", {}), pipe.get("validation", {})
+        # All tunables from config — no hardcoded pipeline params.
+        self.max_retries = int(ing.get("max_retries", _DEFAULTS["max_retries"]))
+        self.retry_backoff_s = float(ing.get("retry_backoff_s",
+                                             _DEFAULTS["retry_backoff_s"]))
+        self.fetch_timeout_s = float(ing.get("fetch_timeout_s",
+                                             _DEFAULTS["fetch_timeout_s"]))
+        self.fetch_order = ing.get("fetch_order", ["erddap_nc", "pydap"])
+        # Gentle pause between chunk requests (be kind to flaky public mirrors).
+        self.pacing_s = float(ing.get("pacing_s", _DEFAULTS["pacing_s"]))
+        self.chunk_years = int(ing.get("chunk_years", 1))
+        # Monthly chunks (~30MB/req) — yearly requests time out on ERDDAP.
+        if "chunk_months" in ing:
+            self.chunk_months = max(1, int(ing["chunk_months"]))
+        elif "chunk_years" in ing:
+            self.chunk_months = max(1, int(ing["chunk_years"]) * 12)
+        else:
+            self.chunk_months = 1
+        self.zarr_chunk_time = int(ing.get("zarr_chunk_time",
+                                           _DEFAULTS["zarr_chunk_time"]))
+        self.overwrite_zarr = bool(ing.get("overwrite_zarr", True))
+        # Resumable ingestion: cache each fetched monthly chunk to disk so a
+        # re-run after a flaky-mirror failure skips chunks already fetched.
+        self.use_chunk_cache = bool(ing.get("use_chunk_cache", True))
+        self.raw_cache_dir = str(
+            self.config.get("storage", {}).get("raw_cache_dir", "data/raw_cache"))
+        self.max_nan_fraction = float(val.get("max_nan_fraction",
+                                              _DEFAULTS["max_nan_fraction"]))
+        self.sst_min = float(val.get("sst_min", -2.0))
+        self.sst_max = float(val.get("sst_max", 40.0))
+        self.current_max = float(val.get("current_max", 3.0))
 
     # ── driver ──────────────────────────────────────────────
     def run(self):
@@ -96,6 +127,21 @@ class DataIngestionFSM:
               f"{cfg['maximal_coverage']['end_date']}")
 
     # ── INGESTING ───────────────────────────────────────────
+    def fetch_variables(self, opendap_url, variables, t_start, t_end):
+        """Public helper: fetch one bbox/time window for given variables.
+
+        Reuses the same ERDDAP .nc query + retry logic as the main ingestion.
+        Handy for small sidecar pulls (e.g. deriving the CRW MMM climatology).
+        """
+        canvas = self.config["spatial_canvas"]
+        nc_url = self._build_erddap_nc_url(
+            opendap_url, variables, t_start, t_end,
+            canvas["lat_min"], canvas["lat_max"], canvas["lon_min"], canvas["lon_max"])
+        ds, _att = self._fetch_nc_chunk(nc_url)
+        if "latitude" in ds.dims:
+            ds = ds.rename({"latitude": "lat", "longitude": "lon"})
+        return ds
+
     def _build_erddap_nc_url(self, opendap_url, variables,
                               t_start, t_end, lat_min, lat_max, lon_min, lon_max):
         host = opendap_url.split("/erddap/")[0]
@@ -108,18 +154,42 @@ class DataIngestionFSM:
         )
         return f"{host}/erddap/griddap/{dataset_id}.nc?{var_parts}"
 
-    def _year_chunks(self, start, end):
-        sy, ey = int(start[:4]), int(end[:4])
-        for y in range(sy, ey + 1):
-            yield (f"{y}-01-01" if y > sy else start,
-                   f"{y}-12-31" if y < ey else end)
+    def _chunk_generator(self, start, end):
+        import datetime as _dt
+        import calendar
+        s_date = _dt.datetime.strptime(start, "%Y-%m-%d").date()
+        e_date = _dt.datetime.strptime(end, "%Y-%m-%d").date()
+        cur = s_date
+        step_m = getattr(self, "chunk_months", 1)
+        while cur <= e_date:
+            m = cur.month + step_m - 1
+            y = cur.year + (m - 1) // 12
+            m = (m - 1) % 12 + 1
+            _, last_day = calendar.monthrange(y, m)
+            chunk_end = _dt.date(y, m, last_day)
+            if chunk_end > e_date:
+                chunk_end = e_date
+            yield cur.strftime("%Y-%m-%d"), chunk_end.strftime("%Y-%m-%d")
+            cur = chunk_end + _dt.timedelta(days=1)
 
-    def _fetch_nc_chunk(self, nc_url, timeout=600):
+    def _year_chunks(self, start, end):
+        return self._chunk_generator(start, end)
+
+    def _chunk_cache_path(self, name, cs, ce):
+        """Disk path for a cached raw chunk (one file per source x month window)."""
+        d = os.path.join(self.raw_cache_dir, name)
+        os.makedirs(d, exist_ok=True)
+        return os.path.join(d, f"{cs}__{ce}.nc")
+
+    def _fetch_nc_chunk(self, nc_url, timeout=None):
         import os as _os
         import tempfile
         import urllib.request
+        import socket
+        timeout = timeout or self.fetch_timeout_s
+        socket.setdefaulttimeout(timeout)
         last_err = None
-        for attempt in range(1, MAX_RETRIES + 1):
+        for attempt in range(1, self.max_retries + 1):
             try:
                 with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
                     tmp_path = tmp.name
@@ -134,16 +204,16 @@ class DataIngestionFSM:
                 return out, attempt
             except Exception as e:
                 last_err = e
-                print(f"       attempt {attempt}/{MAX_RETRIES} failed "
+                print(f"       attempt {attempt}/{self.max_retries} failed "
                       f"({type(e).__name__}: {str(e)[:100]})")
-                if attempt < MAX_RETRIES:
-                    _time.sleep(RETRY_BACKOFF_S * attempt)
-        raise RuntimeError(f"ERDDAP .nc fetch failed after {MAX_RETRIES}: {last_err}")
+                if attempt < self.max_retries:
+                    _time.sleep(self.retry_backoff_s * attempt)
+        raise RuntimeError(f"ERDDAP .nc fetch failed after {self.max_retries}: {last_err}")
 
     def _fetch_pydap(self, opendap_url, variables, drop_dims,
                      t_start, t_end, lat_min, lat_max, lon_min, lon_max):
         last_err = None
-        for attempt in range(1, MAX_RETRIES + 1):
+        for attempt in range(1, self.max_retries + 1):
             try:
                 pydap_url = opendap_url.replace("https://", "dap4://", 1).replace(
                     "http://", "dap4://", 1)
@@ -169,16 +239,20 @@ class DataIngestionFSM:
                 return sub.load(), attempt
             except Exception as e:
                 last_err = e
-                print(f"       pydap attempt {attempt}/{MAX_RETRIES} failed "
+                print(f"       pydap attempt {attempt}/{self.max_retries} failed "
                       f"({type(e).__name__}: {str(e)[:100]})")
-                if attempt < MAX_RETRIES:
-                    _time.sleep(RETRY_BACKOFF_S * attempt)
-        raise RuntimeError(f"pydap fetch failed after {MAX_RETRIES}: {last_err}")
+                if attempt < self.max_retries:
+                    _time.sleep(self.retry_backoff_s * attempt)
+        raise RuntimeError(f"pydap fetch failed after {self.max_retries}: {last_err}")
 
     def _ingest_one_source(self, name, info, canvas):
         opendap_url = info.get("opendap_url")
         if not opendap_url:
             raise RuntimeError(f"No opendap_url for '{name}'. Real-data-only: refusing synthetic.")
+        if self.config.get("pipeline", {}).get("allow_synthetic", False) is not False:
+            raise RuntimeError("pipeline.allow_synthetic must be false (strict real-only).")
+        # Candidate mirrors: primary first, then fallbacks (order preserved, dups dropped).
+        mirrors = list(dict.fromkeys(m for m in (info.get("opendap_mirrors") or [opendap_url]) if m))
         variables = info.get("variables", [])
         rename_map = info.get("rename_vars", {})
         drop_dims = info.get("drop_dims", [])
@@ -187,18 +261,61 @@ class DataIngestionFSM:
         t_canvas = self.config["temporal_canvas"]
 
         parts, total_attempts, bytes_est = [], 0, 0
+        mirrors_used = set()
         for cs, ce in self._year_chunks(t_canvas["start_date"], t_canvas["end_date"]):
-            nc_url = self._build_erddap_nc_url(
-                opendap_url, variables, cs, ce, lat_min, lat_max, lon_min, lon_max)
-            try:
-                print(f"     [nc] {name} {cs}..{ce}")
-                ds_c, att = self._fetch_nc_chunk(nc_url)
-            except Exception as e1:
-                print(f"     [nc] failed ({str(e1)[:80]}), trying pydap...")
-                ds_c, att = self._fetch_pydap(
-                    opendap_url, variables, drop_dims, cs, ce,
-                    lat_min, lat_max, lon_min, lon_max)
+            ds_c, att, used_mirror = None, 0, None
+            last_err = None
+            cache_path = self._chunk_cache_path(name, cs, ce) if self.use_chunk_cache else None
+            # 1) Serve from disk cache if present (resume after a prior failure).
+            if cache_path and os.path.exists(cache_path):
+                try:
+                    with xr.open_dataset(cache_path) as cds:
+                        ds_c = cds.load()
+                    used_mirror = "cache"
+                    print(f"     [cache] {name} {cs}..{ce}")
+                except Exception as e:
+                    print(f"     [cache] {name} {cs}..{ce} unreadable "
+                          f"({str(e)[:60]}) — refetching")
+                    ds_c = None
+            # 2) Otherwise fetch over the network: try each method, each mirror.
+            if ds_c is None:
+                for method in self.fetch_order:
+                    for mirror in mirrors:
+                        try:
+                            if method == "erddap_nc":
+                                nc_url = self._build_erddap_nc_url(
+                                    mirror, variables, cs, ce, lat_min, lat_max,
+                                    lon_min, lon_max)
+                                print(f"     [nc] {name} {cs}..{ce} <- {mirror.split('/')[2]}")
+                                ds_c, att = self._fetch_nc_chunk(nc_url)
+                            elif method == "pydap":
+                                print(f"     [pydap] {name} {cs}..{ce} <- {mirror.split('/')[2]}")
+                                ds_c, att = self._fetch_pydap(
+                                    mirror, variables, drop_dims, cs, ce,
+                                    lat_min, lat_max, lon_min, lon_max)
+                            else:
+                                raise ValueError(f"Unknown fetch method: {method}")
+                            used_mirror = mirror
+                            break  # success
+                        except Exception as e:
+                            last_err = e
+                            print(f"     [{method}@{mirror.split('/')[2]}] chunk failed "
+                                  f"({str(e)[:70]})")
+                    if ds_c is not None:
+                        break
+                # Persist the freshly fetched chunk so future runs can resume.
+                if ds_c is not None and cache_path:
+                    try:
+                        ds_c.to_netcdf(cache_path)
+                    except Exception as e:
+                        print(f"     [cache] could not write {cs}..{ce} ({str(e)[:60]})")
+            if ds_c is None:
+                raise RuntimeError(f"[{name}] chunk {cs}..{ce} failed via "
+                                   f"{self.fetch_order} on {mirrors}: {last_err}. "
+                                   f"No synthetic fallback.")
             total_attempts += att
+            if used_mirror and used_mirror != "cache":
+                mirrors_used.add(used_mirror)
             if "latitude" in ds_c.dims:
                 ds_c = ds_c.rename({"latitude": "lat", "longitude": "lon"})
             ren = {k: v for k, v in rename_map.items() if k in ds_c.data_vars}
@@ -207,6 +324,8 @@ class DataIngestionFSM:
             bytes_est += int(ds_c.nbytes)
             parts.append(ds_c)
             gc.collect()  # keep peak RAM flat across years
+            if self.pacing_s > 0:
+                _time.sleep(self.pacing_s)  # pacing between chunks
 
         ds_all = xr.concat(sorted(parts, key=lambda d: d.time.values[0]),
                            dim="time").sortby("time")
@@ -214,7 +333,8 @@ class DataIngestionFSM:
             p.close()
         del parts
         gc.collect()
-        self.provenance[name] = {"url": opendap_url, "variables": variables,
+        self.provenance[name] = {"url": opendap_url, "mirrors": sorted(mirrors_used),
+                                 "variables": variables,
                                  "attempts": total_attempts, "bytes": bytes_est,
                                  "time_first": str(ds_all.time.values[0]),
                                  "time_last": str(ds_all.time.values[-1])}
@@ -274,28 +394,41 @@ class DataIngestionFSM:
             print(f"  -> [{name}] time steps: {n_expected} (continuous)")
             for var in ds.data_vars:
                 arr = ds[var]
-                nan_frac = float(arr.isnull().mean().values)
-                print(f"  -> [{name}/{var}] NaN: {nan_frac*100:.2f}%")
-                if nan_frac > MAX_NAN_FRACTION:
+                # Distinguish PERMANENT NaN (land pixels, NaN on every timestep)
+                # from TRANSIENT NaN (real data gaps). The GBR bbox legitimately
+                # contains ~35% land; counting land as "missing data" is wrong.
+                static_nan = arr.isnull().all("time")          # (lat, lon) land mask
+                ever_nan   = arr.isnull().any("time")
+                total_frac = float(arr.isnull().mean().values)
+                land_frac  = float(static_nan.mean().values)
+                gap_frac   = float((ever_nan & ~static_nan).mean().values)
+                print(f"  -> [{name}/{var}] NaN: {total_frac*100:.2f}% "
+                      f"(land {land_frac*100:.2f}%, transient gaps {gap_frac*100:.2f}%)")
+                if gap_frac > self.max_nan_fraction:
                     raise RuntimeError(
-                        f"[{name}/{var}] NaN fraction {nan_frac:.3f} > "
-                        f"{MAX_NAN_FRACTION}. Real-data-only: refusing to "
+                        f"[{name}/{var}] transient gap fraction {gap_frac:.3f} > "
+                        f"{self.max_nan_fraction}. Real-data-only: refusing to "
                         f"interpolate large gaps. Check ERDDAP window.")
-                if 0 < nan_frac <= MAX_NAN_FRACTION:
-                    ds[var] = (arr.interpolate_na(dim="lon", method="nearest")
-                                  .interpolate_na(dim="lat", method="nearest"))
+                if gap_frac > 0:
+                    # Fill only the small transient gaps, then re-assert the land
+                    # mask so we never invent ocean values over land pixels.
+                    filled = (arr.interpolate_na(dim="lon", method="nearest")
+                                 .interpolate_na(dim="lat", method="nearest"))
+                    ds[var] = filled.where(~static_nan)
             if "sea_surface_temperature" in ds.data_vars:
                 smin = float(ds["sea_surface_temperature"].min().values)
                 smax = float(ds["sea_surface_temperature"].max().values)
                 print(f"  -> SST range: {smin:.2f}..{smax:.2f} C")
-                if smin < -2.0 or smax > 40.0:
-                    raise RuntimeError("SST outside physical bounds [-2,40].")
+                if smin < self.sst_min or smax > self.sst_max:
+                    raise RuntimeError(
+                        f"SST outside physical bounds [{self.sst_min},{self.sst_max}].")
             if "water_u" in ds.data_vars:
                 umax = max(float(abs(ds["water_u"]).max().values),
                            float(abs(ds["water_v"]).max().values))
                 print(f"  -> |current| max: {umax:.2f} m/s")
-                if umax > 3.0:
-                    raise RuntimeError("Geostrophic current >3 m/s implausible.")
+                if umax > self.current_max:
+                    raise RuntimeError(
+                        f"Geostrophic current >{self.current_max} m/s implausible.")
             self.data_store[name] = ds
 
     # ── STORING (one Zarr, compressed, provenance attrs) ────
@@ -304,23 +437,29 @@ class DataIngestionFSM:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         combined = xr.merge(list(self.data_store.values()))
         # Time-major chunks match training reads (14+7d windows scan time).
-        combined = combined.chunk({"time": 30, "lat": -1, "lon": -1})
+        combined = combined.chunk({"time": self.zarr_chunk_time, "lat": -1, "lon": -1})
         combined.attrs["ingestion"] = "strict real-only, no synthetic"
         combined.attrs["common_coverage"] = str(self.config.get("common_coverage", ""))
         combined.attrs["provenance"] = str(self.provenance)
         print(f"  -> Writing Zarr: {out_path} vars={list(combined.data_vars)} "
               f"shape={dict(combined.sizes)}")
         if os.path.exists(out_path):
+            if not self.overwrite_zarr:
+                raise RuntimeError(f"Zarr exists at {out_path} and overwrite_zarr=false.")
             shutil.rmtree(out_path)
-        comp = {"compressor": None}  # keep default; set Blosc/zstd if available
-        try:
-            import numcodecs as _nc  # noqa
-            comp = {"compressor": _nc.Blosc(cname="zstd", clevel=3)}
-        except Exception:
-            pass
-        enc = {v: {"dtype": "float32", **comp} for v in combined.data_vars}
+        # zarr v3 (this env) uses default zstd compressors; do NOT pass numcodecs
+        # Blosc here (v2 codec -> TypeError on v3). dtype-only encoding is portable.
+        enc = {v: {"dtype": "float32"} for v in combined.data_vars}
         combined.to_zarr(out_path, mode="w", consolidated=True, encoding=enc)
         print("  -> Zarr written. Temp .nc files were deleted inline; no raw archive kept.")
+        # Storage-minimal: drop the resumable chunk cache once the Zarr is safely
+        # written. (If the store had failed, the cache would have been kept.)
+        if self.use_chunk_cache and self.config.get("storage", {}).get(
+                "delete_raw_after_processing", True):
+            cache_root = os.path.join(self.raw_cache_dir)
+            if os.path.isdir(cache_root):
+                shutil.rmtree(cache_root, ignore_errors=True)
+                print("  -> Removed raw chunk cache (storage-minimal).")
         # Free ingested data immediately (storage-minimal peak RAM).
         self.data_store.clear()
         gc.collect()

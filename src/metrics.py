@@ -14,6 +14,22 @@ Plus the key biological stress metric used in the paper:
 import numpy as np
 import torch
 import xarray as xr
+import os
+
+
+def load_crw_mmm(config: dict):
+    """Load the true CRW MMM sidecar if present (shape (H, W) on the canvas grid).
+
+    Produced by `run_derive_mmm.py` from MMM = CRW_SST - CRW_HOTSPOT. Using it
+    makes our predicted DHW climatology-matched to NOAA's ground-truth DHW.
+    Returns None if the sidecar does not exist (caller falls back to a
+    train-split climatology).
+    """
+    path = config.get("storage", {}).get("crw_mmm_path")
+    if path and os.path.exists(path):
+        with np.load(path) as d:
+            return d["mmm"].astype(np.float64)
+    return None
 
 
 def compute_monthly_climatology(sst_da: xr.DataArray) -> np.ndarray:
@@ -92,6 +108,108 @@ def nash_sutcliffe(preds: torch.Tensor, targets: torch.Tensor) -> float:
     return (1.0 - ss_res / (ss_tot + 1e-8)).item()
 
 
+def compute_mmm_climatology(sst_da: xr.DataArray) -> np.ndarray:
+    """NOAA CRW MMM: per-pixel MAXIMUM of 12 monthly means. Shape (H, W).
+
+    Bleaching threshold = MMM + 1C. HotSpot = SST - MMM; DHW accumulates
+    HotSpot/7 only when HotSpot >= 1 (i.e. SST >= MMM+1).
+    """
+    clim12 = compute_monthly_climatology(sst_da)  # (12, H, W)
+    return clim12.max(axis=0)  # (H, W)
+
+
+def reconstruct_continuous(all_windows: torch.Tensor) -> torch.Tensor:
+    """Average overlapping forecast windows into a continuous (T, C, H, W) series.
+
+    Input : (N, H_out, C, H, W) — N sliding windows, each predicting H_out days.
+    Output: (T, C, H, W) with T = N + H_out - 1. Each absolute day is the mean of
+    all windows that cover it (a daily-mean forecast timeline). This is the only
+    valid input for an 84-day DHW accumulation or a residual time series.
+    """
+    n, h_out = all_windows.shape[0], all_windows.shape[1]
+    t_total = n + h_out - 1
+    acc = torch.zeros(t_total, *all_windows.shape[2:])   # (T, C, H, W)
+    cnt = torch.zeros(t_total, 1, 1, 1)
+    for i in range(n):
+        acc[i:i + h_out] += all_windows[i]
+        cnt[i:i + h_out] += 1
+    return acc / cnt.clamp_min(1)
+
+
+def reconstruct_continuous_forecast(all_preds: torch.Tensor) -> torch.Tensor:
+    """Collapse overlapping (N, H, 1, H, W) windows to a continuous (T, 1, H, W).
+
+    Val windows use stride 1, so each absolute day has up to H predictions.
+    We average all predictions covering each day (daily-mean forecast timeline).
+    """
+    return reconstruct_continuous(all_preds)
+
+
+def physics_residual_series(
+    preds: np.ndarray,
+    u_vel: np.ndarray,
+    v_vel: np.ndarray,
+    dx: float = 5500.0,
+    dy: float = 5500.0,
+    dt: float = 86400.0,
+    K: float = 500.0,
+) -> np.ndarray:
+    """Daily spatial-mean |advection-diffusion residual| over a forecast timeline.
+
+    PIVOT differentiator: the residual measures how much the network's own forecast
+    violates the heat-transport physics. If it rises before accumulated heat stress
+    (DHW) peaks, it is an interpretable early-warning precursor.
+
+    Args:
+        preds: (T, H, W) continuous SST (°C).
+        u_vel, v_vel: (T, H, W) velocity (m/s) on the SAME timeline.
+        dx, dy: grid spacing (m). dt: time step (s). K: diffusivity (m^2/s).
+
+    Returns:
+        (T-1,) array; index t = mean |residual| between forecast days t and t+1.
+    """
+    res = np.empty(preds.shape[0] - 1, dtype=np.float64)
+    for t in range(preds.shape[0] - 1):
+        Tp = preds[t]
+        dTdt = (preds[t + 1] - Tp) / dt
+        dTdx = np.gradient(Tp, dx, axis=1)               # along W (longitude)
+        dTdy = np.gradient(Tp, dy, axis=0)               # along H (latitude)
+        d2dx2 = np.gradient(dTdx, dx, axis=1)
+        d2dy2 = np.gradient(dTdy, dy, axis=0)
+        residual = dTdt + u_vel[t] * dTdx + v_vel[t] * dTdy - K * (d2dx2 + d2dy2)
+        res[t] = np.mean(np.abs(residual))
+    return res
+
+
+def persistence_baseline(all_inputs: torch.Tensor, horizon: int) -> torch.Tensor:
+    """Repeat last observed frame over horizon: (N, H, 1, H, W)."""
+    last = all_inputs[:, -1:, :, :, :]  # (N, 1, 1, H, W)
+    return last.repeat(1, horizon, 1, 1, 1)
+
+
+def climatology_baseline(clim12: np.ndarray, target_months: np.ndarray) -> torch.Tensor:
+    """Monthly-climatology baseline forecast.
+
+    The honest "no-skill" reference for SST forecasting is the long-term
+    monthly mean for the *calendar month being predicted* (not a single annual
+    value). We build it from the training-split climatology only.
+
+    Args:
+        clim12:        (12, H, W) monthly-mean SST per pixel (Jan=index 0).
+        target_months: (N, horizon) int array, 0-based calendar month per target day.
+
+    Returns:
+        (N, horizon, 1, H, W) tensor of climatological SST in °C.
+    """
+    n, horizon = target_months.shape
+    h, w = clim12.shape[-2], clim12.shape[-1]
+    out = np.empty((n, horizon, 1, h, w), dtype=np.float32)
+    for i in range(n):
+        for d in range(horizon):
+            out[i, d, 0] = clim12[target_months[i, d] % 12]
+    return torch.from_numpy(out)
+
+
 def compute_dhw_from_sst(
     sst: np.ndarray,
     climatology_mean,
@@ -105,30 +223,35 @@ def compute_dhw_from_sst(
       - DHW > 4 °C-weeks  → bleaching likely to begin
       - DHW > 8 °C-weeks  → severe bleaching and coral mortality likely
 
-    NOAA's definition (which we follow here):
-      1. Bleaching threshold = long-term monthly mean SST climatology + 1°C
-      2. Daily hotspot       = max(0,  SST − bleaching_threshold)
-      3. DHW                 = sum of daily hotspots over the last 84 days (12 weeks) ÷ 7
+    True NOAA CRW definition (use compute_mmm_climatology for climatology_mean):
+      1. MMM = per-pixel MAXIMUM of 12 monthly-mean SST (warmest-month baseline)
+      2. Coral Bleaching HotSpot = SST - MMM  (can be negative; range 0..+5 shown)
+      3. Bleaching threshold = MMM + bleach_offset (1°C). Each day whose HotSpot
+         reaches/exceeds the threshold contributes its FULL HotSpot value; days
+         below the threshold contribute nothing. DHW = sum(HotSpot)/7 over 84 days.
+         e.g. HotSpots 1.0, 2.0, 0.8, 1.2 (2x/week) -> (1.0+2.0+1.2)*0.5 = 2.1.
+
+    Callers: pass MMM (H, W) from TRAINING split only. Do NOT pass annual means.
+    Input sst must be a CONTINUOUS daily timeline (see reconstruct_continuous_forecast),
+    never stitched overlapping windows.
 
     Args:
-        sst:              Shape (Time, H, W) — daily SST maps in °C.
-        climatology_mean: Either:
-                            • A scalar  — applied uniformly to every pixel (fast, approximate).
-                            • A (H, W) np.ndarray — per-pixel threshold matching NOAA CRW.
-                          Use compute_monthly_climatology() to derive the per-pixel version.
-        bleach_offset:    Degrees above climatology that defines the stress onset (default 1°C).
+        sst:              Shape (Time, H, W) — CONTINUOUS daily SST maps in °C.
+        climatology_mean: MMM (H, W) per-pixel, or scalar fallback.
+        bleach_offset:    HotSpot gate defining stress onset (default 1°C NOAA).
         window_days:      Rolling window in days (default 84 = 12 weeks).
 
     Returns:
         dhw: Shape (Time, H, W) — accumulated thermal stress in °C-weeks.
     """
     # Support both scalar and (H, W) spatial climatology maps.
-    # np.atleast_1d / broadcasting handles both cases cleanly.
-    bleaching_threshold = np.asarray(climatology_mean) + bleach_offset
+    # Broadcasting handles both cases cleanly.
+    mmm = np.asarray(climatology_mean, dtype=np.float64)
 
-    # Hotspot: how many degrees each pixel exceeds the bleaching threshold on each day
-    # When bleaching_threshold is (H, W), broadcasting handles the (T, H, W) sst array.
-    hotspot = np.maximum(0.0, sst - bleaching_threshold)
+    # Coral Bleaching HotSpot = SST - MMM. Accumulate the FULL HotSpot value, but
+    # only on days where it reaches the bleaching threshold (>= bleach_offset).
+    hotspot = sst - mmm
+    hotspot = np.where(hotspot >= bleach_offset, hotspot, 0.0)
 
     # Rolling sum of the past 12 weeks of hotspots, converted to weeks
     dhw = np.zeros_like(sst)

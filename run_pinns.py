@@ -5,6 +5,7 @@ from src.config_validator import ConfigValidator
 from src.models import SST_ConvLSTM
 from src.dataset import ReefDataset
 from src.train import train_pinn, resume_from_checkpoint, count_parameters
+from src.reproducibility import set_seed, get_seed, get_device
 from torch.utils.data import DataLoader
 
 
@@ -20,6 +21,11 @@ def main():
 
     validator = ConfigValidator("config.yaml")
     config    = validator.validate()
+
+    # Fix the random seed before building anything random (model init, shuffling).
+    set_seed(get_seed(config))
+    device = get_device(config)
+    print(f"  Seed: {get_seed(config)} | Device: {device}")
 
     zarr_path  = config["storage"]["processed_zarr_path"]
     ds_cfg     = config.get("dataset", {})
@@ -80,7 +86,7 @@ def main():
         print(f"  Forward pass OK. Output shape: {preds.shape}")
 
         from src.physics import PhyLoss
-        phy  = PhyLoss(K=0.05)
+        phy  = PhyLoss(K=500.0)
         u    = torch.rand(2, horizon, 1, 16, 16) * 0.1
         v    = torch.rand(2, horizon, 1, 16, 16) * 0.1
         loss = phy(preds, u, v)

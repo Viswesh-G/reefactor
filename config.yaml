@@ -2,8 +2,49 @@
 # This single file drives every stage: ingestion → training → evaluation.
 
 pipeline:
-  name: "GBR_PINN_2020"
+  name: "GBR_PINN_2017_2018"
   description: "Physics-Informed Neural Network for Great Barrier Reef coral bleaching prediction"
+  # ── Pipeline control panel (single glance orchestration) ──
+  mode: "strict" # strict = real-only, fail-fast | lenient not used (kept for clarity)
+  strict_real_only: true
+  allow_synthetic: false # never generate mock data; raise on fetch failure
+  phases: ["check_coverage", "ingest", "resolve", "validate", "store"] # FSM order
+  # Canonical requested window — must match temporal_canvas / spatial_canvas below
+  # (validator enforces equality; edit in one place, validated in the other).
+  # Start = 2017-02-13 because NESDIS altimetry geostrophic currents begin there
+  # (the velocity source's true axis minimum). Earlier dates have no current data.
+  time_start: "2017-02-13"
+  time_end: "2018-12-31"
+  time_lag_cycle: "daily"
+  lag_strategy: "max"
+  lat_min: -24.0
+  lat_max: -10.0
+  lon_min: 142.0
+  lon_max: 154.0
+  target_resolution: 0.05
+  ingestion:
+    chunk_months: 1 # monthly ERDDAP requests (~8MB each, fast response)
+    chunk_years: 1 # fallback
+    max_retries: 6
+    retry_backoff_s: 8.0
+    pacing_s: 2.0 # gentle pause between chunks (be kind to the flaky mirror)
+    # Cache each successfully-fetched monthly chunk to disk so flaky-mirror runs
+    # are RESUMABLE: a re-run skips network for chunks already on disk instead of
+    # restarting from scratch. Cache is deleted after a successful Zarr store.
+    use_chunk_cache: true
+    fetch_timeout_s: 600
+    fetch_order: ["erddap_nc", "pydap"] # try .nc query first, then OPeNDAP stream
+    zarr_chunk_time: 30 # time-major chunks match 14+7d training reads
+    overwrite_zarr: true
+  validation:
+    max_nan_fraction: 0.05 # >5% NaN -> fail, no large-gap interpolation
+    sst_min: -2.0
+    sst_max: 40.0
+    current_max: 3.0 # |u|,|v| m/s plausibility cap
+  run:
+    seed: 42
+    device: "cpu" # cpu | cuda (auto-fallback in code if unavailable)
+    overwrite_checkpoints: false
 
 spatial_canvas:
   lat_min: -24.0
@@ -28,7 +69,7 @@ source_natives:
     lon_max: 179.975
     resolution: 0.05
   velocity: # NESDIS CoastWatch altimetry geostrophic currents, near-global
-    start_date: "2017-01-01"
+    start_date: "2017-02-13" # true axis minimum of nesdisSSH1day ugos/vgos
     end_date: "present"
     lat_min: -75.0
     lat_max: 75.0
@@ -37,7 +78,7 @@ source_natives:
     resolution: 0.25
 
 common_coverage: # MINIMAL — intersection, all-vars-real guarantee
-  start_date: "2017-01-01"
+  start_date: "2017-02-13" # velocity-limited (altimetry currents start here)
   end_date: "2023-12-31" # frozen study end; set to "present" for live mode
   lat_min: -24.0
   lat_max: -10.0
@@ -57,17 +98,22 @@ maximal_coverage: # MAXIMAL — envelope, widest requestable without extrapolati
   note: "Same GBR canvas, SST extends to 1985. Velocity absent pre-2017 by design."
 
 temporal_canvas:
-  start_date: "2017-01-01"
-  end_date: "2023-12-31"
+  start_date: "2017-02-13"
+  end_date: "2018-12-31"
   time_lag_cycle: "daily"
   lag_strategy: "max"
 
 data_sources:
   sst:
     source: "NOAA_CRW"
-    # NOAA CoralTemp 5km — free public ERDDAP, no login, updated daily
-    # Provides SST, DHW, Hotspot, and Bleaching Alert Area on the same grid.
-    opendap_url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW"
+    # NOAA CoralTemp / CRW 5km daily via PacIOOS ERDDAP (free public, no login).
+    # NOTE: coastwatch.pfeg.noaa.gov/griddap/NOAA_DHW now 302-redirects to the
+    # PacIOOS mirror, so we list both: if the primary mirror is momentarily
+    # unloaded (intermittent 404), the redirect mirror is tried in turn.
+    opendap_url: "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/dhw_5km"
+    opendap_mirrors:
+      - "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/dhw_5km"
+      - "https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW"
     source_resolution: 0.05
     # Exact variable names as they appear in the remote ERDDAP dataset
     variables: ["CRW_SST", "CRW_DHW"]
@@ -81,6 +127,8 @@ data_sources:
     source: "NESDIS_ALTIMETRY"
     # NOAA CoastWatch Geostrophic Currents from Altimetry
     opendap_url: "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisSSH1day"
+    opendap_mirrors:
+      - "https://coastwatch.pfeg.noaa.gov/erddap/griddap/nesdisSSH1day"
     source_resolution: 0.25
     variables: ["ugos", "vgos"]
     rename_vars:
@@ -100,6 +148,13 @@ dataset:
 storage:
   processed_zarr_path: "data/processed/unified_gbr_canvas.zarr"
   checkpoint_dir: "data/checkpoints"
+  # Small sidecar (H x W float32 ~270 KB) holding the TRUE NOAA CRW MMM per pixel,
+  # derived from CRW SST - CRW HotSpot. Used so predicted DHW is computed against
+  # the same climatology NOAA used -> apples-to-apples DHW comparison.
+  crw_mmm_path: "data/processed/crw_mmm.npz"
+  # Scratch cache of raw fetched monthly chunks (resumable ingestion). Deleted
+  # after a successful Zarr store when delete_raw_after_processing is true.
+  raw_cache_dir: "data/raw_cache"
   delete_raw_after_processing: true
 
 training:
@@ -108,7 +163,16 @@ training:
   learning_rate: 0.001
   weight_decay: 0.0001
   gradient_clip: 1.0
-  # Smoothing factor for the Exponential Moving Average used in dynamic loss balancing
+  # EMA momentum on OLD lambda (0.9 = smooth, stable). Update: λ <- α·λ + (1-α)·λ̂
   ema_alpha: 0.9
-  # Thermal diffusivity constant K in the Advection-Diffusion equation
-  physics_K: 0.05
+  # SI-unit physics: K in m^2/s, dx/dy in m, dt in s. K~500 typical at 5km grids.
+  physics_K: 500.0
+  physics_dx: 5500.0
+  physics_dy: 5500.0
+  physics_dt: 86400.0
+  # PIVOT differentiator: let the network CALIBRATE eddy diffusivity during
+  # training (learned in log-space, clamped). The learned K is a physical result
+  # we can compare against literature instead of a hand-picked constant.
+  physics_learn_K: true # true = learn K in log-space, clamped to [K_min, K_max]
+  physics_K_min: 10.0
+  physics_K_max: 5000.0

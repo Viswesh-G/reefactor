@@ -1,4 +1,4 @@
-.PHONY: install ingest train eval baseline ablation noaa_baseline plot all clean help
+.PHONY: install ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot all clean help
 
 # Python executable from the virtual environment (Windows)
 PYTHON = venv\Scripts\python.exe
@@ -11,11 +11,13 @@ help:
 	@echo  make install        Install dependencies into the virtual environment
 	@echo  make all            Run the FULL pipeline: ingest+train+baseline+eval+plot
 	@echo  make ingest         Stream satellite data and build the Zarr data store
+	@echo  make derive_mmm     Recover the true NOAA CRW MMM climatology sidecar
 	@echo  make train          Train the Physics-Informed ConvLSTM (PhyConvLSTM)
 	@echo  make eval           Evaluate the best trained PINN and print metrics
 	@echo  make baseline       Train the Vanilla ConvLSTM baseline (no physics loss)
 	@echo  make ablation       Train the ablation: PINN with K=0 (advection only)
 	@echo  make noaa_baseline  Run the NOAA CRW operational DHW algorithm baseline
+	@echo  make early_warning  Physics-residual early-warning precursor analysis
 	@echo  make plot           Generate all paper figures from saved checkpoints
 	@echo  make clean          Remove Python cache files
 	@echo.
@@ -28,6 +30,9 @@ all:
 
 ingest:
 	$(PYTHON) run_ingestion.py
+
+derive_mmm:
+	$(PYTHON) run_derive_mmm.py
 
 train:
 	$(PYTHON) run_pinns.py
@@ -43,6 +48,9 @@ ablation:
 
 noaa_baseline:
 	$(PYTHON) run_noaa_dhw_baseline.py
+
+early_warning:
+	$(PYTHON) run_early_warning.py
 
 plot:
 	$(PYTHON) run_plot_figures.py

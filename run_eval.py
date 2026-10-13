@@ -28,12 +28,18 @@ from torch.utils.data import DataLoader
 from src.config_validator import ConfigValidator
 from src.models import SST_ConvLSTM
 from src.dataset import ReefDataset
+from src.reproducibility import set_seed, get_seed, get_device
 from src.metrics import (
     rmse,
     anomaly_correlation,
     nash_sutcliffe,
     compute_dhw_from_sst,
     compute_monthly_climatology,
+    compute_mmm_climatology,
+    load_crw_mmm,
+    reconstruct_continuous_forecast,
+    persistence_baseline,
+    climatology_baseline,
     bleaching_alert_agreement,
     compute_lead_rmse,
     print_metrics_table,
@@ -44,6 +50,8 @@ def main():
     # --- Config ---
     validator = ConfigValidator("config.yaml")
     config    = validator.validate()
+    set_seed(get_seed(config))
+    device    = get_device(config)
 
     zarr_path      = config["storage"]["processed_zarr_path"]
     checkpoint_dir = config["storage"]["checkpoint_dir"]
@@ -61,11 +69,15 @@ def main():
     patch_size   = ds_cfg.get("patch_size", None)
 
     # --- Load Validation Split ---
+    # IMPORTANT: evaluate on the FULL spatial field (patch_size=None), never on
+    # random crops. Training uses 64x64 patches for CPU memory, but each validation
+    # day must cover the whole GBR grid so the forecast timeline is spatially
+    # consistent (required for a valid 84-day DHW accumulation).
     print(f"\nLoading validation split from: {zarr_path}")
     try:
         val_dataset = ReefDataset(
             zarr_path, lookback=lookback, horizon=horizon,
-            split="val", val_fraction=val_fraction, patch_size=patch_size,
+            split="val", val_fraction=val_fraction, patch_size=None,
         )
     except Exception as e:
         print(f"Could not load Zarr data: {e}")
@@ -77,73 +89,102 @@ def main():
 
     # --- Load Model ---
     model = SST_ConvLSTM(in_channels=1, hidden_dim=[32, 64], out_steps=horizon)
-    model.load_state_dict(torch.load(best_model_path, map_location="cpu"))
+    model.load_state_dict(torch.load(best_model_path, map_location=device))
+    model.to(device)
     model.eval()
-    print(f"  Loaded model: {best_model_path}")
+    print(f"  Loaded model: {best_model_path} (device={device})")
 
-    # --- Collect Predictions ---
+    # --- Collect Predictions (+ inputs for persistence baseline) ---
     all_preds   = []
     all_targets = []
+    all_inputs  = []
 
     print("\nRunning inference on validation set...")
     with torch.no_grad():
         for x_sst, y_sst, _, _ in val_loader:
+            x_sst = x_sst.to(device)
             preds = model(x_sst)
-            all_preds.append(preds)
+            all_preds.append(preds.cpu())
             all_targets.append(y_sst)
+            all_inputs.append(x_sst.cpu())
 
     all_preds   = torch.cat(all_preds,   dim=0)   # (N, horizon, 1, H, W)
     all_targets = torch.cat(all_targets, dim=0)   # (N, horizon, 1, H, W)
+    all_inputs  = torch.cat(all_inputs,  dim=0)   # (N, lookback, 1, H, W)
 
     # Denormalize from z-score back to real °C using the training split's stats
     preds_celsius   = all_preds   * val_dataset.sst_std + val_dataset.sst_mean
     targets_celsius = all_targets * val_dataset.sst_std + val_dataset.sst_mean
 
-    # --- Standard Metrics ---
+    # --- Standard Metrics + persistence & climatology baselines (reviewers demand) ---
+    persist_norm = persistence_baseline(all_inputs, horizon)
+    persist_c = persist_norm * val_dataset.sst_std + val_dataset.sst_mean
     metrics = {
         "RMSE (°C)":                  rmse(preds_celsius, targets_celsius),
         "Anomaly Correlation (ACC)":   anomaly_correlation(preds_celsius, targets_celsius),
         "Nash-Sutcliffe Efficiency":   nash_sutcliffe(preds_celsius, targets_celsius),
+        "Persistence RMSE (°C)":       rmse(persist_c, targets_celsius),
+        "Persistence ACC":              anomaly_correlation(persist_c, targets_celsius),
     }
 
     # --- DHW Comparison (if ground-truth DHW was ingested) ---
+    # True NOAA: MMM = per-pixel MAX of monthly means (training split only),
+    # threshold MMM+1, 84d window. Forecast timeline is the continuous daily-mean
+    # reconstruction (never stitched overlapping windows).
     ds = xr.open_zarr(zarr_path, consolidated=True)
     if "degree_heating_weeks" in ds.data_vars:
         print("  Computing Degree Heating Weeks from predictions...")
 
-        # --- Per-pixel monthly climatology from the training split only ---
-        # This is the NOAA CRW definition: each pixel has its own baseline
-        # derived from its long-term monthly mean SST (not the global mean).
-        n_times   = ds.dims["time"]
+        n_times   = ds.sizes["time"]
         val_start = int(n_times * (1.0 - val_fraction))
         sst_train_da = ds["sea_surface_temperature"].isel(time=slice(0, val_start))
-        print("  Building per-pixel monthly climatology from training split...")
-        clim12 = compute_monthly_climatology(sst_train_da)  # shape: (12, H, W)
-        # Use the mean across months as a representative scalar-like threshold
-        # (we pass the full (12, H, W) array; compute_dhw_from_sst handles broadcasting)
-        # For simplicity we pick the annual mean of monthly means per pixel → (H, W)
-        clim_per_pixel = clim12.mean(axis=0)   # shape: (H, W)
+        # Prefer the TRUE CRW MMM sidecar (climatology-matched to NOAA DHW).
+        mmm = load_crw_mmm(config)
+        if mmm is not None:
+            print("  Using TRUE CRW MMM sidecar (climatology-matched to NOAA DHW).")
+        else:
+            print("  MMM sidecar not found — falling back to train-split MMM "
+                  "(run run_derive_mmm.py for a matched comparison).")
+            mmm = compute_mmm_climatology(sst_train_da)  # (H, W)
 
-        # Flatten predictions from (N, horizon, 1, H, W) to (T, H, W)
-        n, h_out, _, h, w = all_preds.shape
-        preds_np = preds_celsius.squeeze(2).numpy().reshape(n * h_out, h, w)
+        # Skill of the honest "no-skill" reference: predict the training-split
+        # climatology of the *target calendar month* for every validation day.
+        clim12 = compute_monthly_climatology(sst_train_da)  # (12, H, W) in °C
+        times  = ds.time.values
+        months = np.empty((len(val_dataset), horizon), dtype=int)
+        for i in range(len(val_dataset)):
+            t_split = val_start + i + lookback
+            for d in range(horizon):
+                months[i, d] = int(times[t_split + d].astype("datetime64[M]").astype(int) % 12)
+        clim_fc = climatology_baseline(clim12.astype(np.float32), months)  # °C
+        metrics["Climatology RMSE (°C)"] = rmse(clim_fc, targets_celsius)
 
-        dhw_pred = compute_dhw_from_sst(preds_np, climatology_mean=clim_per_pixel)
+        # Continuous forecast timeline for valid 84d DHW accumulation
+        cont_pred = reconstruct_continuous_forecast(preds_celsius)  # (T,1,H,W)
+        preds_np = cont_pred.squeeze(1).numpy()  # (T, H, W)
 
-        # Load the matching slice of true NOAA DHW from the Zarr store
-        true_dhw  = ds["degree_heating_weeks"].isel(time=slice(val_start, None)).values
+        dhw_pred = compute_dhw_from_sst(preds_np, climatology_mean=mmm)
 
-        # Align lengths before comparing (preds may be slightly shorter due to window edge)
+        # Load the matching slice of true NOAA DHW from the Zarr store.
+        # Cont timeline starts at val_start+lookback (first forecast day), not val_start.
+        dhw_start = val_start + lookback
+        true_dhw  = ds["degree_heating_weeks"].isel(time=slice(dhw_start, None)).values
+
+        # Align lengths before comparing (tail window edge)
         min_len   = min(dhw_pred.shape[0], true_dhw.shape[0])
-        dhw_pred_t = torch.from_numpy(dhw_pred[:min_len]).float()
-        dhw_true_t = torch.from_numpy(true_dhw[:min_len]).float()
+        dhw_pred = dhw_pred[:min_len]
+        # Warm-up guard: first 83 DHW values lack full 84d history — compare from day 83
+        # only when timeline is long enough; else compare all (short 2017-2018 test).
+        w = 83 if min_len > 100 else 0
+        dhw_pred_t = torch.from_numpy(dhw_pred[w:]).float()
+        dhw_true_t = torch.from_numpy(true_dhw[w:min_len]).float()
 
         metrics["DHW RMSE (°C-weeks)"]   = rmse(dhw_pred_t, dhw_true_t)
         metrics["DHW Correlation (ACC)"]  = anomaly_correlation(dhw_pred_t, dhw_true_t)
 
         # --- Bleaching Alert Level Agreement (DHW classification metrics) ---
-        dhw_pred_np = dhw_pred[:min_len]
-        dhw_true_np = true_dhw[:min_len]
+        dhw_pred_np = dhw_pred[w:]
+        dhw_true_np = true_dhw[w:min_len]
 
         for thr in [4.0, 8.0]:
             alert = bleaching_alert_agreement(dhw_pred_np, dhw_true_np, threshold=thr)

@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from src.models import SST_ConvLSTM
 from src.physics import PhyLoss
+from src.reproducibility import get_device
 
 # Training a PINN involves balancing two objectives that can conflict:
 #   1. Data Match (MSE Loss)   — fit the observed satellite SST measurements
@@ -39,20 +40,41 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
         wd             = train_cfg.get("weight_decay", 1e-4)
         alpha          = train_cfg.get("ema_alpha", alpha)
         grad_clip      = train_cfg.get("gradient_clip", 1.0)
-        physics_K      = train_cfg.get("physics_K", 0.05)
+        physics_K      = train_cfg.get("physics_K", 500.0)
+        physics_dx     = train_cfg.get("physics_dx", 5500.0)
+        physics_dy     = train_cfg.get("physics_dy", 5500.0)
+        physics_dt     = train_cfg.get("physics_dt", 86400.0)
+        physics_learn_K = train_cfg.get("physics_learn_K", False)
+        physics_K_min  = train_cfg.get("physics_K_min", 10.0)
+        physics_K_max  = train_cfg.get("physics_K_max", 5000.0)
         checkpoint_dir = config.get("storage", {}).get("checkpoint_dir", "data/checkpoints")
     else:
-        lr, wd, grad_clip, physics_K = 1e-3, 1e-4, 1.0, 0.05
+        lr, wd, grad_clip = 1e-3, 1e-4, 1.0
+        physics_K, physics_dx, physics_dy, physics_dt = 500.0, 5500.0, 5500.0, 86400.0
+        physics_learn_K, physics_K_min, physics_K_max = False, 10.0, 5000.0
         checkpoint_dir = "data/checkpoints"
 
     os.makedirs(checkpoint_dir, exist_ok=True)
+
+    # --- Place model + physics kernels on the configured device (cpu/cuda) ---
+    device = get_device(config) if config is not None else "cpu"
+    model.to(device)
 
     # --- Setup Optimizer and Loss Functions ---
     # AdamW decouples weight decay from the gradient update, which improves generalization
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
 
     criterion_data    = nn.MSELoss()          # Standard pixel-wise squared error
-    criterion_physics = PhyLoss(K=physics_K)  # Advection-Diffusion residual penalty
+    criterion_physics = PhyLoss(K=physics_K, dx=physics_dx, dy=physics_dy,
+                                dt=physics_dt, learn_K=physics_learn_K,
+                                K_min=physics_K_min, K_max=physics_K_max)
+    criterion_physics.to(device)
+    if physics_learn_K:
+        optimizer.add_param_group({"params": criterion_physics.parameters()})
+        print(f"  Learnable K enabled (init {physics_K} m^2/s, range "
+              f"[{physics_K_min},{physics_K_max}])")
+    print(f"  Physics SI units: K={physics_K} m^2/s, dx={physics_dx} m, "
+          f"dy={physics_dy} m, dt={physics_dt} s")
 
     # Physics weight starts at 1.0 and is dynamically adjusted each batch
     lambda_data = 1.0
@@ -64,7 +86,7 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
     # Logs one row per epoch: useful for generating Figure 3 (λ_phy convergence)
     # and lead-time RMSE decay curves in the paper.
     log_path = os.path.join(checkpoint_dir, "training_log.csv")
-    log_fields = ["epoch", "data_loss", "phy_loss", "lambda_phy", "val_loss"]
+    log_fields = ["epoch", "data_loss", "phy_loss", "lambda_phy", "K_eff", "val_loss"]
     log_file = open(log_path, "w", newline="")
     log_writer = csv.DictWriter(log_file, fieldnames=log_fields)
     log_writer.writeheader()
@@ -85,6 +107,10 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
 
         for batch in train_loader:
             x_sst, y_true_sst, u_vel, v_vel = batch
+            x_sst       = x_sst.to(device)
+            y_true_sst  = y_true_sst.to(device)
+            u_vel       = u_vel.to(device)
+            v_vel       = v_vel.to(device)
 
             # Step 1: Clear gradients from the previous batch
             optimizer.zero_grad()
@@ -113,8 +139,10 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
             mean_grad_phy  = torch.mean(torch.abs(grad_phy))
             lambda_hat     = max_grad_data / (mean_grad_phy + 1e-8)
 
-            # Smooth the weight update with EMA to prevent wild oscillations
-            lambda_phy = (1 - alpha) * lambda_phy + alpha * lambda_hat.item()
+            # EMA with alpha as momentum on OLD value (alpha=0.9 = smooth, stable):
+            #   λ <- α·λ + (1-α)·λ̂. (Previously inverted: 0.1·old + 0.9·new = jittery.)
+            if torch.isfinite(lambda_hat):
+                lambda_phy = alpha * lambda_phy + (1.0 - alpha) * lambda_hat.item()
             # ==================================================
 
             # Step 4: Combine losses with the dynamically balanced weight
@@ -146,6 +174,8 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
             with torch.no_grad():
                 for batch in val_loader:
                     x_sst, y_true_sst, _, _ = batch
+                    x_sst = x_sst.to(device)
+                    y_true_sst = y_true_sst.to(device)
                     preds      = model(x_sst)
                     val_total += criterion_data(preds, y_true_sst).item()
 
@@ -170,6 +200,7 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
                 "model_state_dict":     model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "lambda_phy":           lambda_phy,
+                "K_eff":                criterion_physics.K_value(),
                 "best_val_loss":        best_val_loss,
             },
             ckpt_path,
@@ -178,11 +209,13 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
         # --- Write CSV log row ---
         avg_data_loss = epoch_data_loss / n_train
         avg_phy_loss  = epoch_phy_loss  / n_train
+        k_eff = criterion_physics.K_value()  # learned (or fixed) diffusivity, m^2/s
         log_writer.writerow({
             "epoch":      epoch + 1,
             "data_loss":  f"{avg_data_loss:.6f}",
             "phy_loss":   f"{avg_phy_loss:.6f}",
             "lambda_phy": f"{lambda_phy:.6f}",
+            "K_eff":      f"{k_eff:.4f}",
             "val_loss":   f"{val_loss:.6f}" if not (val_loss != val_loss) else "nan",
         })
         log_file.flush()  # Write immediately so progress is visible even if training crashes
@@ -192,7 +225,8 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
             f"Epoch [{epoch+1:>3}/{epochs}] | "
             f"Data: {avg_data_loss:.4f} | "
             f"Phy: {avg_phy_loss:.4f} | "
-            f"λ_phy: {lambda_phy:.4f}"
+            f"λ_phy: {lambda_phy:.4f} | "
+            f"K: {k_eff:.1f}"
             f"{val_info}"
         )
 
@@ -267,7 +301,7 @@ if __name__ == "__main__":
     preds = model(x_sst_dummy)
     print(f"Prediction output shape: {preds.shape}")  # Expected: (2, 3, 1, 16, 16)
 
-    physics_criterion = PhyLoss(K=0.05)
+    physics_criterion = PhyLoss(K=500.0)
     p_loss = physics_criterion(preds, u_vel_dummy, v_vel_dummy)
     print(f"Initial Physics Loss: {p_loss.item():.6f}")
 

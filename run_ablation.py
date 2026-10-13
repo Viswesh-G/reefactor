@@ -3,8 +3,8 @@ run_ablation.py — Physics Ablation Study Entry Point
 
 Tests what specific physical term drives performance improvement:
 
-    Full PINN:     dT/dt + u·∂T/∂x + v·∂T/∂y = K·∇²T  (K=0.05)
-    Ablation:      dT/dt + u·∂T/∂x + v·∂T/∂y = 0       (K=0.0, diffusion only)
+    Full PINN:     dT/dt + u·∂T/∂x + v·∂T/∂y = K·∇²T  (K>0, m^2/s)
+    Ablation:      dT/dt + u·∂T/∂x + v·∂T/∂y = 0       (K=0.0, advection only)
 
 Both use the same Wang et al. 2021 dynamic gradient balancing. The difference
 in validation loss isolates whether diffusion (K>0) is what helps.
@@ -24,6 +24,7 @@ from src.config_validator import ConfigValidator
 from src.models import SST_ConvLSTM
 from src.dataset import ReefDataset
 from src.ablation import train_ablation
+from src.reproducibility import set_seed, get_seed
 
 
 def main():
@@ -31,6 +32,7 @@ def main():
 
     validator = ConfigValidator("config.yaml")
     config    = validator.validate()
+    set_seed(get_seed(config))
 
     zarr_path  = config["storage"]["processed_zarr_path"]
     ds_cfg     = config.get("dataset", {})
