@@ -25,6 +25,7 @@ venv\Scripts\activate          # Windows
 # source venv/bin/activate     # Linux/macOS
 make install
 make all                       # Full pipeline: ingest → MMM → train → baselines → eval → warning → plot
+make test                      # Fast configuration, DHW, grid, and physics contract checks
 ```
 
 > No GPU required. No proprietary data. No API keys.
@@ -56,7 +57,7 @@ make install
 ```bash
 make ingest
 ```
-Streams lazily from free public ERDDAP servers over OPeNDAP. Only the GBR bounding box is transferred. Runs in **strict real-only mode**: if a source is unreachable it raises rather than generating synthetic data. A list of mirror URLs is tried per chunk, with gentle pacing between requests.
+Streams from free public ERDDAP servers over OPeNDAP in bounded monthly chunks. Only the GBR bounding box is transferred. Runs in **strict real-only mode**: if a source is unreachable it raises rather than generating synthetic data. A list of mirror URLs is tried per chunk, with gentle pacing between requests. Interpolation never extrapolates beyond source coverage, and each variable has an explicit temporal reducer. Before writing Zarr, the pipeline verifies that SST, CRW DHW, and currents all share exactly one `(time, lat, lon)` canvas; training refuses stores that do not satisfy this contract.
 
 | Variable | Source | ERDDAP ID |
 |---|---|---|
@@ -80,8 +81,10 @@ and fall back to a train-split climatology if absent.
 make train
 # Resume after interruption:
 venv\Scripts\python.exe run_pinns.py --resume
+# Module-only smoke test (does not create a training checkpoint):
+venv\Scripts\python.exe run_pinns.py --smoke
 ```
-Saves `best_model.pt` and `latest_checkpoint.pt` every epoch. Writes `training_log.csv` with epoch, data_loss, phy_loss, λ_phy, **K_eff**, val_loss. With `physics_learn_K: true` the diffusivity K is learned in log-space (clamped to `[physics_K_min, physics_K_max]`) — the converged `K_eff` is a physical result we can compare against literature.
+Saves `best_model.pt` and `latest_checkpoint.pt` every epoch. Writes `training_log.csv` with epoch, data_loss, phy_loss, λ_phy, **K_eff**, val_loss. With `physics_learn_K: true` the diffusivity K is learned in log-space (clamped to `[physics_K_min, physics_K_max]`). Treat the converged `K_eff` as an estimated parameter only after sensitivity and repeated-seed analysis.
 
 ### `make baseline` — Vanilla ConvLSTM (no physics)
 ```bash

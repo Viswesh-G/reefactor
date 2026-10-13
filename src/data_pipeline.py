@@ -21,6 +21,7 @@ import numpy as np
 import xarray as xr
 
 from src.config_validator import ConfigValidator
+from src.grid import build_axis
 
 
 class PipelineState:
@@ -35,6 +36,10 @@ class PipelineState:
 
 
 LAG_STRATEGY_MAP = {"max": "max", "min": "min", "avg": "mean"}
+LAG_AGGREGATION_MAP = {
+    "max": "max", "min": "min", "avg": "mean", "mean": "mean",
+    "last": "last", "first": "first",
+}
 LAG_CYCLE_MAP = {"daily": "1D", "weekly": "7D", "monthly": "MS", "annually": "YS"}
 
 # Defaults if pipeline block missing (legacy). Canonical values live in
@@ -74,6 +79,14 @@ class DataIngestionFSM:
         self.zarr_chunk_time = int(ing.get("zarr_chunk_time",
                                            _DEFAULTS["zarr_chunk_time"]))
         self.overwrite_zarr = bool(ing.get("overwrite_zarr", True))
+        self.aggregation = dict(
+            ing.get("aggregation", {
+                "sea_surface_temperature": "max",
+                "degree_heating_weeks": "last",
+                "water_u": "mean",
+                "water_v": "mean",
+            })
+        )
         # Resumable ingestion: cache each fetched monthly chunk to disk so a
         # re-run after a flaky-mirror failure skips chunks already fetched.
         self.use_chunk_cache = bool(ing.get("use_chunk_cache", True))
@@ -354,10 +367,10 @@ class DataIngestionFSM:
     def _resolve_data(self):
         canvas = self.config["spatial_canvas"]
         t_canvas = self.config["temporal_canvas"]
-        target_lat = np.arange(canvas["lat_min"], canvas["lat_max"],
-                               canvas["target_resolution"])
-        target_lon = np.arange(canvas["lon_min"], canvas["lon_max"],
-                               canvas["target_resolution"])
+        target_lat = build_axis(canvas["lat_min"], canvas["lat_max"],
+                                canvas["target_resolution"])
+        target_lon = build_axis(canvas["lon_min"], canvas["lon_max"],
+                                canvas["target_resolution"])
         freq = LAG_CYCLE_MAP[t_canvas["time_lag_cycle"]]
         method = LAG_STRATEGY_MAP[t_canvas["lag_strategy"]]
 
@@ -371,10 +384,19 @@ class DataIngestionFSM:
 
         for name, ds in self.data_store.items():
             print(f"  -> [{name}] daily-{method} resample")
-            ds = getattr(ds.resample(time=freq), method)()
+            resampled = {}
+            for var in ds.data_vars:
+                aggregation = self.aggregation.get(var, method)
+                if aggregation not in LAG_AGGREGATION_MAP:
+                    raise ValueError(
+                        f"Unsupported aggregation '{aggregation}' for variable '{var}'"
+                    )
+                reducer = LAG_AGGREGATION_MAP[aggregation]
+                resampled[var] = getattr(ds[var].resample(time=freq), reducer)()
+            ds = xr.Dataset(resampled, attrs=ds.attrs)
             print(f"  -> [{name}] bilinear interp to unified 0.05 deg canvas")
             ds = ds.interp(lat=target_lat, lon=target_lon, method="linear",
-                           kwargs={"fill_value": "extrapolate"})
+                           kwargs={"fill_value": np.nan})
             # Identical time axis for all vars (NaN where a source truly missing).
             ds = ds.reindex(time=common_time)
             # Storage-minimal dtype: float32 is plenty for SST/currents.
@@ -382,13 +404,53 @@ class DataIngestionFSM:
                 if ds[v].dtype == np.float64:
                     ds[v] = ds[v].astype(np.float32)
             self.data_store[name] = ds
+        self._validate_unified_canvas(target_lat, target_lon, common_time)
         gc.collect()
+
+    def _validate_unified_canvas(self, target_lat, target_lon, common_time):
+        """Require every stored variable to share one exact spatiotemporal canvas."""
+        expected_dims = ("time", "lat", "lon")
+        required = {"sea_surface_temperature", "degree_heating_weeks",
+                    "water_u", "water_v"}
+        seen = set()
+
+        for source_name, ds in self.data_store.items():
+            for variable in ds.data_vars:
+                seen.add(variable)
+                if ds[variable].dims != expected_dims:
+                    raise RuntimeError(
+                        f"[{source_name}/{variable}] dims {ds[variable].dims} "
+                        f"do not match required {expected_dims}."
+                    )
+                for dim, expected in (
+                    ("time", common_time), ("lat", target_lat), ("lon", target_lon)
+                ):
+                    actual = ds[dim].values
+                    if dim == "time":
+                        actual = actual.astype("datetime64[ns]")
+                        expected = expected.astype("datetime64[ns]")
+                    if not np.array_equal(actual, expected):
+                        raise RuntimeError(
+                            f"[{source_name}/{variable}] coordinate '{dim}' "
+                            "does not match the canonical canvas."
+                        )
+
+        missing = required - seen
+        if missing:
+            raise RuntimeError(
+                "Unified canvas is incomplete; missing required variables: "
+                + ", ".join(sorted(missing))
+            )
+        print("  -> Unified canvas verified: all variables share "
+              "(time, lat, lon) coordinates.")
 
     # ── VALIDATING (fail-fast, no silent fill of real gaps) ─
     def _validate_data(self):
         for name, ds in self.data_store.items():
             # Time continuity: no missing days on the common axis.
             n_expected = len(ds.time)
+            if n_expected != len(np.unique(ds.time.values)):
+                raise RuntimeError(f"[{name}] duplicate timestamps after resolving.")
             if int(ds.time.isnull().sum().values):
                 raise RuntimeError(f"[{name}] null timestamps on common axis.")
             print(f"  -> [{name}] time steps: {n_expected} (continuous)")
@@ -436,6 +498,16 @@ class DataIngestionFSM:
         out_path = self.config["storage"]["processed_zarr_path"]
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         combined = xr.merge(list(self.data_store.values()))
+        if tuple(combined.dims) != ("time", "lat", "lon"):
+            raise RuntimeError(
+                f"Stored dataset dims {tuple(combined.dims)} are not "
+                "(time, lat, lon)."
+            )
+        for variable in combined.data_vars:
+            if combined[variable].dims != ("time", "lat", "lon"):
+                raise RuntimeError(
+                    f"Stored variable '{variable}' is not 3-D on the unified canvas."
+                )
         # Time-major chunks match training reads (14+7d windows scan time).
         combined = combined.chunk({"time": self.zarr_chunk_time, "lat": -1, "lon": -1})
         combined.attrs["ingestion"] = "strict real-only, no synthetic"

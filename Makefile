@@ -1,4 +1,4 @@
-.PHONY: install ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot all clean help
+.PHONY: install test ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot all clean help
 
 # Python executable from the virtual environment (Windows)
 PYTHON = venv\Scripts\python.exe
@@ -9,6 +9,7 @@ help:
 	@echo  REEFS_ML — PINN Coral Bleaching Pipeline
 	@echo  =========================================
 	@echo  make install        Install dependencies into the virtual environment
+	@echo  make test           Run fast core contract tests
 	@echo  make all            Run the FULL pipeline: ingest+train+baseline+eval+plot
 	@echo  make ingest         Stream satellite data and build the Zarr data store
 	@echo  make derive_mmm     Recover the true NOAA CRW MMM climatology sidecar
@@ -24,6 +25,9 @@ help:
 
 install:
 	$(PIP) install -r requirements.txt
+
+test:
+	$(PYTHON) -m unittest discover -s tests -v
 
 all:
 	$(PYTHON) run_all.py

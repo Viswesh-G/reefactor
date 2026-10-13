@@ -36,6 +36,12 @@ pipeline:
     fetch_order: ["erddap_nc", "pydap"] # try .nc query first, then OPeNDAP stream
     zarr_chunk_time: 30 # time-major chunks match 14+7d training reads
     overwrite_zarr: true
+    # Preserve product semantics when a source contains sub-daily records.
+    aggregation:
+      sea_surface_temperature: "max"
+      degree_heating_weeks: "last"
+      water_u: "mean"
+      water_v: "mean"
   validation:
     max_nan_fraction: 0.05 # >5% NaN -> fail, no large-gap interpolation
     sst_min: -2.0

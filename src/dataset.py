@@ -56,6 +56,19 @@ class ReefDataset(Dataset):
 
         # Open the Zarr store lazily — data stays on disk until we slice it in __getitem__
         self.ds = xr.open_zarr(zarr_path, consolidated=True)
+        required = {"sea_surface_temperature", "water_u", "water_v"}
+        missing = required - set(self.ds.data_vars)
+        if missing:
+            raise ValueError(
+                "Zarr store is not a unified spatiotemporal canvas; missing "
+                "required variables: " + ", ".join(sorted(missing))
+            )
+        for variable in required:
+            if self.ds[variable].dims != ("time", "lat", "lon"):
+                raise ValueError(
+                    f"{variable} must have dims ('time', 'lat', 'lon'), "
+                    f"got {self.ds[variable].dims}"
+                )
         total_times = self.ds.dims["time"]
 
         # Chronological split: training on the first portion, validation on the last
@@ -84,12 +97,7 @@ class ReefDataset(Dataset):
         if self.sst_std == 0:
             self.sst_std = 1.0  # Safety guard against constant synthetic data
 
-        # Check which velocity variables are available (they may not be if ingestion failed)
-        self.has_velocity = (
-            "water_u" in self.ds.data_vars and "water_v" in self.ds.data_vars
-        )
-
-        # Store spatial dimensions for use when building zero-velocity fallback tensors
+        # Store spatial dimensions for optional training patch crops.
         self.n_lat = self.ds.dims["lat"]
         self.n_lon = self.ds.dims["lon"]
 
@@ -120,19 +128,10 @@ class ReefDataset(Dataset):
         x_sst = torch.from_numpy(sst_input).unsqueeze(1).float()
         y_sst = torch.from_numpy(sst_target).unsqueeze(1).float()
 
-        if self.has_velocity:
-            u = self.ds["water_u"].isel(time=slice(t_split, t_end)).values
-            v = self.ds["water_v"].isel(time=slice(t_split, t_end)).values
-            u_vel = torch.from_numpy(u).unsqueeze(1).float()
-            v_vel = torch.from_numpy(v).unsqueeze(1).float()
-        else:
-            # If velocity data is missing, use zero tensors.
-            # The physics loss will then only apply diffusion (no advection),
-            # which is a physically valid degraded mode.
-            H = x_sst.shape[-2]
-            W = x_sst.shape[-1]
-            u_vel = torch.zeros(self.horizon, 1, H, W)
-            v_vel = torch.zeros(self.horizon, 1, H, W)
+        u = self.ds["water_u"].isel(time=slice(t_split, t_end)).values
+        v = self.ds["water_v"].isel(time=slice(t_split, t_end)).values
+        u_vel = torch.from_numpy(u).unsqueeze(1).float()
+        v_vel = torch.from_numpy(v).unsqueeze(1).float()
 
         # --- Optional spatial patch crop ---
         # For memory-constrained environments (e.g., CPU training on a laptop),
