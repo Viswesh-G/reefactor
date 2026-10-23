@@ -81,9 +81,10 @@ REEFS_ML/
 NOAA ERDDAP OPeNDAP
     ↓ (Strategy 1: .nc URL subset)
     ↓ (Strategy 2: pydap DAP4 stream)
-    ↓ (Strategy 3: synthetic fallback for CI/offline)
+    ↓ (failure is explicit if real sources are unavailable)
 DataIngestionFSM
-    → Resample to daily max, bilinear interpolation to 0.05° canvas
+    → Variable-specific temporal aggregation, bilinear interpolation to inclusive 0.05° canvas
+    → Exact spatiotemporal unity check for every variable
     → Z-score normalize SST (training split stats only)
     → Write to unified_gbr_canvas.zarr (chunks: time=30, lat=-1, lon=-1)
     ↓
@@ -119,6 +120,23 @@ DHW derivation (post-hoc)
 
 ### Why Zarr (not NetCDF)?
 Zarr stores data in chunks optimised for *time-series* reads. Because training iterates through time sequentially, `chunks=(30, -1, -1)` means each training batch touches at most 1–2 chunks. NetCDF's default chunking is optimised for spatial reads (all time for one location), which would be dramatically slower here.
+
+### Why no interpolation extrapolation?
+
+The source grids are not identical at their edges. The resolver interpolates
+only inside the source support and preserves out-of-support values as missing.
+Extrapolating at the boundary would create apparently valid ocean temperatures
+or currents that were never observed. Small transient gaps may still be filled
+by the validation policy; large gaps fail fast.
+
+### What “spatiotemporal unity” means
+
+The processed store has one canonical coordinate contract: `(time, lat, lon)`.
+SST, CRW DHW, eastward current, and northward current must all use the same
+coordinate values, ordering, and lengths. This is checked after resolution and
+again before Zarr storage. The lazy training dataset also rejects a store
+missing either current component instead of silently replacing real forcing
+with zeros.
 
 ### Why `patch_size`?
 The GBR canvas at 0.05° resolution is ~280×240 pixels. Full-resolution training on CPU requires loading the entire spatial domain for each batch (≈268 MB per batch at float32). `patch_size=64` reduces this to 4 MB per batch, making CPU-only training feasible.

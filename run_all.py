@@ -28,12 +28,6 @@ import sys
 import time
 
 
-ZARR_PATH       = "data/processed/unified_gbr_canvas.zarr"
-PINN_CKPT       = "data/checkpoints/best_model.pt"
-BASELINE_CKPT   = "data/checkpoints/baseline/baseline_best_model.pt"
-ABLATION_CKPT   = "data/checkpoints/ablation/ablation_best_model.pt"
-MMM_PATH        = "data/processed/crw_mmm.npz"
-
 PHASE_ORDER = ["ingest", "derive_mmm", "train", "baseline", "ablation", "noaa", "eval", "early_warning", "plot"]
 
 
@@ -97,9 +91,10 @@ def phase_train():
     patch_size   = ds_cfg.get("patch_size", None)
     batch_size   = train_cfg.get("batch_size", 4)
 
-    train_dataset = ReefDataset(ZARR_PATH, lookback=lookback, horizon=horizon,
+    zarr_path = config["storage"]["processed_zarr_path"]
+    train_dataset = ReefDataset(zarr_path, lookback=lookback, horizon=horizon,
                                 split="train", val_fraction=val_fraction, patch_size=patch_size)
-    val_dataset   = ReefDataset(ZARR_PATH, lookback=lookback, horizon=horizon,
+    val_dataset   = ReefDataset(zarr_path, lookback=lookback, horizon=horizon,
                                 split="val",   val_fraction=val_fraction, patch_size=patch_size)
     train_loader  = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,  num_workers=0)
     val_loader    = DataLoader(val_dataset,   batch_size=batch_size, shuffle=False, num_workers=0)
@@ -166,21 +161,24 @@ def main():
     print("║         REEFS_ML — Full Research Pipeline            ║")
     print("║  PhyConvLSTM for GBR Coral Bleaching Prediction      ║")
     print("╚══════════════════════════════════════════════════════╝")
+    configured_zarr = _cfg["storage"]["processed_zarr_path"]
+    configured_checkpoints = _cfg["storage"]["checkpoint_dir"]
+    configured_mmm = _cfg["storage"]["crw_mmm_path"]
+    pinn_ckpt = os.path.join(configured_checkpoints, "best_model.pt")
     print(f"\n  Starting from phase: {args.start_from.upper()}")
-    print(f"  Zarr path:  {ZARR_PATH}")
-    print(f"  PINN ckpt:  {PINN_CKPT}")
-    print(f"  Base ckpt:  {BASELINE_CKPT}\n")
+    print(f"  Zarr path:  {configured_zarr}")
+    print(f"  PINN ckpt:  {pinn_ckpt}\n")
 
     phases = [
         ("ingest",   phase_ingest,
-         start_idx > 0 or (args.skip_ingest and os.path.exists(ZARR_PATH)),
-         f"Zarr already exists at {ZARR_PATH}" if os.path.exists(ZARR_PATH) else "Skipped by flag"),
+         start_idx > 0 or (args.skip_ingest and os.path.exists(configured_zarr)),
+         f"Zarr already exists at {configured_zarr}" if os.path.exists(configured_zarr) else "Skipped by flag"),
         ("derive_mmm", phase_derive_mmm,
-         start_idx > PHASE_ORDER.index("derive_mmm") or os.path.exists(MMM_PATH),
-         f"MMM sidecar already exists at {MMM_PATH}"),
+         start_idx > PHASE_ORDER.index("derive_mmm") or os.path.exists(configured_mmm),
+         f"MMM sidecar already exists at {configured_mmm}"),
         ("train",    phase_train,
          start_idx > PHASE_ORDER.index("train") or args.skip_train,
-         "checkpoint already exists" if os.path.exists(PINN_CKPT) else "Skipped by flag"),
+         "checkpoint already exists" if os.path.exists(pinn_ckpt) else "Skipped by flag"),
         ("baseline", phase_baseline,
          start_idx > PHASE_ORDER.index("baseline"),
          "Skipped (start_from is later)"),

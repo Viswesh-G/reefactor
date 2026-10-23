@@ -15,6 +15,10 @@ def main():
         "--resume", action="store_true",
         help="Resume training from latest_checkpoint.pt instead of starting fresh."
     )
+    parser.add_argument(
+        "--smoke", action="store_true",
+        help="Run a deterministic model/physics smoke test without a Zarr store."
+    )
     args = parser.parse_args()
 
     print("Initializing Physics-Informed Neural Network (PINN) Training...")
@@ -53,6 +57,21 @@ def main():
             print(f"  Warning: {e}")
             print("  Starting fresh training run instead.")
 
+    if args.smoke:
+        print("Running explicit model/physics smoke test...")
+        x = torch.rand(2, lookback, 1, 16, 16)
+        preds = model(x)
+        from src.physics import PhyLoss
+        phy = PhyLoss(K=500.0)
+        u = torch.rand(2, horizon, 1, 16, 16) * 0.1
+        v = torch.rand(2, horizon, 1, 16, 16) * 0.1
+        loss = phy(preds, u, v)
+        assert preds.shape == (2, horizon, 1, 16, 16)
+        assert torch.isfinite(loss)
+        print(f"  Forward pass OK: {tuple(preds.shape)}")
+        print(f"  Physics loss OK: {loss.item():.6f}")
+        return
+
     # --- Load Train and Validation Datasets ---
     train_loader = None
     val_loader   = None
@@ -71,27 +90,16 @@ def main():
         print(f"  Validation samples: {len(val_dataset)}")
 
     except Exception as e:
-        print(f"\nCould not load Zarr data ({e}).")
-        print("Run `make ingest` first to build the data store.")
-        print("Falling back to smoke test with random tensors...\n")
+        raise RuntimeError(
+            f"Could not load Zarr data ({e}). Run `make ingest` first, "
+            "or pass --smoke for an explicit synthetic smoke test."
+        ) from e
 
     if train_loader is not None and len(train_loader) > 0:
         model = train_pinn(model, train_loader, val_loader=val_loader, config=config)
 
     else:
-        # Smoke test — verifies all modules connect correctly without real data
-        print("Running smoke test with random tensors...")
-        x     = torch.rand(2, lookback, 1, 16, 16)
-        preds = model(x)
-        print(f"  Forward pass OK. Output shape: {preds.shape}")
-
-        from src.physics import PhyLoss
-        phy  = PhyLoss(K=500.0)
-        u    = torch.rand(2, horizon, 1, 16, 16) * 0.1
-        v    = torch.rand(2, horizon, 1, 16, 16) * 0.1
-        loss = phy(preds, u, v)
-        print(f"  Physics loss: {loss.item():.6f}")
-        print("Smoke test passed. Run `make ingest` first to train on real data.")
+        raise RuntimeError("Training dataset is empty; refusing to report success.")
 
 
 if __name__ == "__main__":

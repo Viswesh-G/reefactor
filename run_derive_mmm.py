@@ -28,6 +28,7 @@ import numpy as np
 
 from src.config_validator import ConfigValidator
 from src.data_pipeline import DataIngestionFSM
+from src.grid import build_axis
 
 
 def main():
@@ -64,10 +65,10 @@ def main():
 
     # ── Interpolate to the exact training canvas grid ──
     canvas = cfg["spatial_canvas"]
-    tlat = np.arange(canvas["lat_min"], canvas["lat_max"], canvas["target_resolution"])
-    tlon = np.arange(canvas["lon_min"], canvas["lon_max"], canvas["target_resolution"])
+    tlat = build_axis(canvas["lat_min"], canvas["lat_max"], canvas["target_resolution"])
+    tlon = build_axis(canvas["lon_min"], canvas["lon_max"], canvas["target_resolution"])
     mmm = mmm_native.interp(lat=tlat, lon=tlon, method="linear",
-                            kwargs={"fill_value": "extrapolate"})
+                            kwargs={"fill_value": np.nan})
     mmm = np.asarray(mmm.values, dtype=np.float32)
     frac_valid = float(np.isfinite(mmm).mean())
     print(f"  Canvas MMM: shape={mmm.shape} range={np.nanmin(mmm):.2f}..{np.nanmax(mmm):.2f} degC "
