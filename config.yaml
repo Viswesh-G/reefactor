@@ -176,3 +176,10 @@ training:
   physics_learn_K: true # true = learn K in log-space, clamped to [K_min, K_max]
   physics_K_min: 10.0
   physics_K_max: 5000.0
+  # NOVEL DIFFERENTIATOR: learn a per-pixel eddy diffusivity map (K_spatial).
+  # When true, PhyLoss learns a (patch_size x patch_size) K map instead of a
+  # single scalar. The spatial pattern reveals WHERE the GBR mixes heat faster
+  # (reef passes, shelf breaks) vs. slower (lagoonal areas). Comparable to
+  # observational estimates from drifter data (Oke & Middleton 2001: ~50-2000 m^2/s).
+  # Requires patch_size to be set (not null). Set to false for scalar-K run.
+  physics_K_spatial: false   # start with scalar; set true for spatial-K experiment

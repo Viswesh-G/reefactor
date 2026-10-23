@@ -40,18 +40,25 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
         wd             = train_cfg.get("weight_decay", 1e-4)
         alpha          = train_cfg.get("ema_alpha", alpha)
         grad_clip      = train_cfg.get("gradient_clip", 1.0)
-        physics_K      = train_cfg.get("physics_K", 500.0)
-        physics_dx     = train_cfg.get("physics_dx", 5500.0)
-        physics_dy     = train_cfg.get("physics_dy", 5500.0)
-        physics_dt     = train_cfg.get("physics_dt", 86400.0)
-        physics_learn_K = train_cfg.get("physics_learn_K", False)
-        physics_K_min  = train_cfg.get("physics_K_min", 10.0)
-        physics_K_max  = train_cfg.get("physics_K_max", 5000.0)
-        checkpoint_dir = config.get("storage", {}).get("checkpoint_dir", "data/checkpoints")
+        physics_K        = train_cfg.get("physics_K", 500.0)
+        physics_dx       = train_cfg.get("physics_dx", 5500.0)
+        physics_dy       = train_cfg.get("physics_dy", 5500.0)
+        physics_dt       = train_cfg.get("physics_dt", 86400.0)
+        physics_learn_K  = train_cfg.get("physics_learn_K", False)
+        physics_K_min    = train_cfg.get("physics_K_min", 10.0)
+        physics_K_max    = train_cfg.get("physics_K_max", 5000.0)
+        physics_K_spatial = train_cfg.get("physics_K_spatial", False)
+        checkpoint_dir   = config.get("storage", {}).get("checkpoint_dir", "data/checkpoints")
+        # Spatial K requires grid dimensions. We read patch_size as a proxy; if
+        # patch_size is None (full grid) we cannot pass grid dims here — the
+        # DataLoader batch will reveal actual H,W. For now store for downstream use.
+        patch_size = config.get("dataset", {}).get("patch_size", None)
     else:
         lr, wd, grad_clip = 1e-3, 1e-4, 1.0
         physics_K, physics_dx, physics_dy, physics_dt = 500.0, 5500.0, 5500.0, 86400.0
         physics_learn_K, physics_K_min, physics_K_max = False, 10.0, 5000.0
+        physics_K_spatial = False
+        patch_size = None
         checkpoint_dir = "data/checkpoints"
 
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -65,14 +72,22 @@ def train_pinn(model, train_loader, val_loader=None, config=None, epochs=50, alp
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
 
     criterion_data    = nn.MSELoss()          # Standard pixel-wise squared error
-    criterion_physics = PhyLoss(K=physics_K, dx=physics_dx, dy=physics_dy,
-                                dt=physics_dt, learn_K=physics_learn_K,
-                                K_min=physics_K_min, K_max=physics_K_max)
+    # Spatial K: grid dims known only from patch_size (or None = full canvas).
+    # We defer actual H/W to the first batch if patch_size=None.
+    grid_h = patch_size if (physics_K_spatial and patch_size) else None
+    grid_w = patch_size if (physics_K_spatial and patch_size) else None
+    criterion_physics = PhyLoss(
+        K=physics_K, dx=physics_dx, dy=physics_dy, dt=physics_dt,
+        learn_K=physics_learn_K, K_min=physics_K_min, K_max=physics_K_max,
+        K_spatial=physics_K_spatial and (patch_size is not None),
+        grid_h=grid_h, grid_w=grid_w,
+    )
     criterion_physics.to(device)
     if physics_learn_K:
+        k_mode = f"spatial ({patch_size}×{patch_size} map)" if (physics_K_spatial and patch_size) else "scalar"
         optimizer.add_param_group({"params": criterion_physics.parameters()})
-        print(f"  Learnable K enabled (init {physics_K} m^2/s, range "
-              f"[{physics_K_min},{physics_K_max}])")
+        print(f"  Learnable K enabled [{k_mode}]: init {physics_K} m^2/s, "
+              f"range [{physics_K_min},{physics_K_max}]")
     print(f"  Physics SI units: K={physics_K} m^2/s, dx={physics_dx} m, "
           f"dy={physics_dy} m, dt={physics_dt} s")
 

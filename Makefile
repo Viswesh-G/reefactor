@@ -1,4 +1,4 @@
-.PHONY: install ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot all clean help
+.PHONY: install ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot smoke all clean help
 
 # Python executable from the virtual environment (Windows)
 PYTHON = venv\Scripts\python.exe
@@ -10,6 +10,7 @@ help:
 	@echo  =========================================
 	@echo  make install        Install dependencies into the virtual environment
 	@echo  make all            Run the FULL pipeline: ingest+train+baseline+eval+plot
+	@echo  make smoke          Run end-to-end smoke test (no real data needed, ~30s)
 	@echo  make ingest         Stream satellite data and build the Zarr data store
 	@echo  make derive_mmm     Recover the true NOAA CRW MMM climatology sidecar
 	@echo  make train          Train the Physics-Informed ConvLSTM (PhyConvLSTM)
@@ -54,6 +55,9 @@ early_warning:
 
 plot:
 	$(PYTHON) run_plot_figures.py
+
+smoke:
+	$(PYTHON) run_smoke_test.py
 
 clean:
 	@echo Cleaning up Python cache files...
