@@ -16,7 +16,7 @@ CONTEXT = list(LABEL_SOURCE["context"])
 IDENTIFIERS = ["Site_ID", "Sample_ID", "Data_Source", "Reef_ID", "Bleaching_Level"]
 
 
-def convert_labels(csv_path, output):
+def convert_labels(csv_path, output, gbr_only=False):
     """Drop duplicated climate summaries (some use full-series/future statistics)."""
     frame = pl.scan_csv(csv_path, null_values=["nd", "NA", ""], infer_schema_length=0)
     required = set(IDENTIFIERS + CONTEXT + ["Date", "Latitude_Degrees", "Longitude_Degrees", "Percent_Bleaching"])
@@ -37,6 +37,11 @@ def convert_labels(csv_path, output):
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(".tmp.parquet")
     selected.sink_parquet(temporary)
+    if gbr_only:
+        from .region import contains_points
+        frame = pl.read_parquet(temporary)
+        finite = frame.filter(pl.col("lat").is_between(-24, -10) & pl.col("lon").is_between(142, 154))
+        finite.filter(pl.Series(contains_points(finite["lat"].to_numpy(), finite["lon"].to_numpy()))).write_parquet(temporary)
     os.replace(temporary, output)
     stored = pl.scan_parquet(output)
     summary = stored.select(pl.len().alias("rows"), pl.col("Site_ID").n_unique().alias("sites"),
@@ -49,18 +54,19 @@ def convert_labels(csv_path, output):
 def fetch_labels(root, execution):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    output = root / "bleaching_v2.parquet"
+    output = root / "bleaching_v2_gbr.parquet"
     if output.exists():
         raise FileExistsError("Label output exists; use its provenance or choose a new directory")
     with tempfile.TemporaryDirectory(prefix="labels_", dir=root) as scratch:
         raw = Path(scratch)/"bleaching.csv"
         provenance = download(LABEL_URL, raw, execution)
-        summary = convert_labels(raw, output)
+        summary = convert_labels(raw, output, gbr_only=True)
     metadata = {"doi": LABEL_DOI, "version": 2, "url": LABEL_URL, "license": "CC-BY-4.0",
                 "provenance": provenance, "summary": summary, "parquet_sha256": file_hash(output),
                 "parquet_bytes": output.stat().st_size,
                 "excluded_inputs": "all precomputed thermal/climate summaries; protocol fields are not predictors"}
-    write_json_atomic(root / "bleaching_v2.json", metadata)
+    metadata["study_region"] = "official_GBR_Marine_Park_boundary"
+    write_json_atomic(root / "bleaching_v2_gbr.json", metadata)
     return metadata
 
 

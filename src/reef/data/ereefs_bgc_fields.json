@@ -1,0 +1,638 @@
+[
+  {
+    "native": "TOTAL_NITROGEN",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Total Nitrogen"
+  },
+  {
+    "native": "alk",
+    "coordinates": "time zc latitude longitude",
+    "units": "mmol m-3",
+    "long_name": "Total alkalinity"
+  },
+  {
+    "native": "BOD",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg O m-3",
+    "long_name": "Biochemical Oxygen Demand"
+  },
+  {
+    "native": "CH_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Coral host N"
+  },
+  {
+    "native": "Chl_a_sum",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg Chl m-3",
+    "long_name": "Total Chlorophyll"
+  },
+  {
+    "native": "CO32",
+    "coordinates": "time zc latitude longitude",
+    "units": "mmol m-3",
+    "long_name": "Carbonate"
+  },
+  {
+    "native": "CS_bleach",
+    "coordinates": "time latitude longitude",
+    "units": "d-1",
+    "long_name": "Coral bleach rate"
+  },
+  {
+    "native": "CS_Chl",
+    "coordinates": "time latitude longitude",
+    "units": "mg Chl m-2",
+    "long_name": "Coral symbiont Chl"
+  },
+  {
+    "native": "CS_N",
+    "coordinates": "time latitude longitude",
+    "units": "mg N m-2",
+    "long_name": "Coral symbiont N"
+  },
+  {
+    "native": "DetBL_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Labile Detrital Nitrogen Benthic"
+  },
+  {
+    "native": "DetPL_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Labile Detrital Nitrogen Plank"
+  },
+  {
+    "native": "DetR_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Refractory Detrital Nitrogen"
+  },
+  {
+    "native": "DIC",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg C m-3",
+    "long_name": "Dissolved Inorganic Carbon"
+  },
+  {
+    "native": "DIN",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Dissolved Inorganic Nitrogen"
+  },
+  {
+    "native": "DIP",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg P m-3",
+    "long_name": "Dissolved Inorganic Phosphorus"
+  },
+  {
+    "native": "DOR_C",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg C m-3",
+    "long_name": "Dissolved Organic Carbon"
+  },
+  {
+    "native": "DOR_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Dissolved Organic Nitrogen"
+  },
+  {
+    "native": "DOR_P",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg P m-3",
+    "long_name": "Dissolved Organic Phosphorus"
+  },
+  {
+    "native": "Dust",
+    "coordinates": "time zc latitude longitude",
+    "units": "kg m-3",
+    "long_name": "Dust"
+  },
+  {
+    "native": "EFI",
+    "coordinates": "time zc latitude longitude",
+    "units": "kg m-3",
+    "long_name": "Ecology Fine Inorganics"
+  },
+  {
+    "native": "EpiPAR_sg",
+    "coordinates": "time latitude longitude",
+    "units": "mol photon m-2 d-1",
+    "long_name": "Light intensity above seagrass"
+  },
+  {
+    "native": "eta",
+    "coordinates": "time latitude longitude",
+    "units": "metre",
+    "long_name": "Surface Elevation"
+  },
+  {
+    "native": "FineSed",
+    "coordinates": "time zc latitude longitude",
+    "units": "kg m-3",
+    "long_name": "FineSed"
+  },
+  {
+    "native": "Fluorescence",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg chla m-3",
+    "long_name": "Simulated Fluorescence"
+  },
+  {
+    "native": "HCO3",
+    "coordinates": "time zc latitude longitude",
+    "units": "mmol m-3",
+    "long_name": "Bicarbonate"
+  },
+  {
+    "native": "Kd_490",
+    "coordinates": "time zc latitude longitude",
+    "units": "m-1",
+    "long_name": "Vert. att. at 490 nm "
+  },
+  {
+    "native": "MA_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Macroalgae N"
+  },
+  {
+    "native": "MA_N_pr",
+    "coordinates": "time latitude longitude",
+    "units": "mg N m-2 d-1",
+    "long_name": "Macroalgae net production"
+  },
+  {
+    "native": "month_EpiPAR_sg",
+    "coordinates": "time latitude longitude",
+    "units": "mol photon m-2",
+    "long_name": "Monthly dose light above seagrass"
+  },
+  {
+    "native": "MPB_Chl",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg Chl m-3",
+    "long_name": "Microphytobenthos chlorophyll"
+  },
+  {
+    "native": "MPB_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Microphytobenthos N"
+  },
+  {
+    "native": "MPB_NR",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Microphytobenthos N reserve"
+  },
+  {
+    "native": "Nfix",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3 s-1",
+    "long_name": "N2 fixation"
+  },
+  {
+    "native": "NH4",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Ammonia"
+  },
+  {
+    "native": "NO3",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Nitrate"
+  },
+  {
+    "native": "omega_ar",
+    "coordinates": "time zc latitude longitude",
+    "units": "nil",
+    "long_name": "Aragonite saturation state"
+  },
+  {
+    "native": "Oxy_sat",
+    "coordinates": "time zc latitude longitude",
+    "units": "%",
+    "long_name": "Oxygen saturation percent"
+  },
+  {
+    "native": "Oxygen",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg O m-3",
+    "long_name": "Dissolved Oxygen"
+  },
+  {
+    "native": "P_Prod",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg C m-3 d-1",
+    "long_name": "Phytoplankton total productivity"
+  },
+  {
+    "native": "PAR",
+    "coordinates": "time zc latitude longitude",
+    "units": "mol photon m-2 s-1",
+    "long_name": "Av. PAR in layer"
+  },
+  {
+    "native": "PAR_z",
+    "coordinates": "time zc latitude longitude",
+    "units": "mol photon m-2 s-1",
+    "long_name": "Downwelling PAR at top of layer"
+  },
+  {
+    "native": "pco2surf",
+    "coordinates": "time zc latitude longitude",
+    "units": "ppmv",
+    "long_name": "oceanic pCO2 (ppmv)"
+  },
+  {
+    "native": "PH",
+    "coordinates": "time zc latitude longitude",
+    "units": "log(mM)",
+    "long_name": "PH"
+  },
+  {
+    "native": "PhyL_Chl",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg Chl m-3",
+    "long_name": "Large Phytoplankton chlorophyll"
+  },
+  {
+    "native": "PhyL_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Large Phytoplankton N"
+  },
+  {
+    "native": "PhyL_NR",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Large Phytoplankton N reserve"
+  },
+  {
+    "native": "PhyS_Chl",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg Chl m-3",
+    "long_name": "Small Phytoplankton chlorophyll"
+  },
+  {
+    "native": "PhyS_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Small Phytoplankton N"
+  },
+  {
+    "native": "PhyS_NR",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Small Phytoplankton N reserve"
+  },
+  {
+    "native": "PIP",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg P m-3",
+    "long_name": "Particulate Inorganic Phosphorus"
+  },
+  {
+    "native": "R_400",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 400 nm"
+  },
+  {
+    "native": "R_410",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @  410 nm"
+  },
+  {
+    "native": "R_412",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 412 nm"
+  },
+  {
+    "native": "R_443",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 443 nm"
+  },
+  {
+    "native": "R_470",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 470 nm"
+  },
+  {
+    "native": "R_486",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 486 nm"
+  },
+  {
+    "native": "R_488",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 488 nm"
+  },
+  {
+    "native": "R_490",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 490 nm"
+  },
+  {
+    "native": "R_510",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 510 nm"
+  },
+  {
+    "native": "R_531",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 531 nm"
+  },
+  {
+    "native": "R_547",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 547 nm"
+  },
+  {
+    "native": "R_551",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 551 nm"
+  },
+  {
+    "native": "R_555",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 555 nm"
+  },
+  {
+    "native": "R_560",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 560 nm"
+  },
+  {
+    "native": "R_590",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 590 nm"
+  },
+  {
+    "native": "R_620",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 620 nm"
+  },
+  {
+    "native": "R_640",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 640 nm"
+  },
+  {
+    "native": "R_645",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 645 nm"
+  },
+  {
+    "native": "R_665",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 665 nm"
+  },
+  {
+    "native": "R_667",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 667 nm"
+  },
+  {
+    "native": "R_671",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 671 nm"
+  },
+  {
+    "native": "R_673",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 673 nm"
+  },
+  {
+    "native": "R_678",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 678 nm"
+  },
+  {
+    "native": "R_681",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 681 nm"
+  },
+  {
+    "native": "R_709",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 709 nm"
+  },
+  {
+    "native": "R_745",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 745 nm"
+  },
+  {
+    "native": "R_748",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 748 nm"
+  },
+  {
+    "native": "R_754",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 754 nm"
+  },
+  {
+    "native": "R_761",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 761 nm"
+  },
+  {
+    "native": "R_764",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 764 nm"
+  },
+  {
+    "native": "R_767",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 767 nm"
+  },
+  {
+    "native": "R_778",
+    "coordinates": "time latitude longitude",
+    "units": "sr-1",
+    "long_name": "Remote-sensing reflectance @ 778 nm"
+  },
+  {
+    "native": "salt",
+    "coordinates": "time zc latitude longitude",
+    "units": "PSU",
+    "long_name": "Salinity"
+  },
+  {
+    "native": "Secchi",
+    "coordinates": "time latitude longitude",
+    "units": "m",
+    "long_name": "Secchi from 488 nm"
+  },
+  {
+    "native": "SG_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Seagrass N"
+  },
+  {
+    "native": "SG_N_pr",
+    "coordinates": "time latitude longitude",
+    "units": "mg N m-2 d-1",
+    "long_name": "Seagrass net production"
+  },
+  {
+    "native": "SG_shear_mort",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2 d-1",
+    "long_name": "Seagrass shear stress mort"
+  },
+  {
+    "native": "SGD_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Deep seagrass N"
+  },
+  {
+    "native": "SGD_N_pr",
+    "coordinates": "time latitude longitude",
+    "units": "mg N m-2 d-1",
+    "long_name": "Deep seagrass net production"
+  },
+  {
+    "native": "SGD_shear_mort",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2 d-1",
+    "long_name": "Deep seagrass shear stress mort"
+  },
+  {
+    "native": "SGH_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Halophila N"
+  },
+  {
+    "native": "SGH_N_pr",
+    "coordinates": "time latitude longitude",
+    "units": "mg N m-2 d-1",
+    "long_name": "Halophila net production"
+  },
+  {
+    "native": "SGHROOT_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Halophila root N"
+  },
+  {
+    "native": "SGROOT_N",
+    "coordinates": "time latitude longitude",
+    "units": "g N m-2",
+    "long_name": "Seagrass root N"
+  },
+  {
+    "native": "TC",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg C m-3",
+    "long_name": "Total C"
+  },
+  {
+    "native": "temp",
+    "coordinates": "time zc latitude longitude",
+    "units": "degrees C",
+    "long_name": "Temperature"
+  },
+  {
+    "native": "TN",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Total N"
+  },
+  {
+    "native": "TP",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg P m-3",
+    "long_name": "Total P"
+  },
+  {
+    "native": "Tricho_Chl",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg Chl m-3",
+    "long_name": "Trichodesmium chlorophyll"
+  },
+  {
+    "native": "Tricho_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Trichodesmium Nitrogen"
+  },
+  {
+    "native": "Tricho_NR",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Trichodesmium N reserve"
+  },
+  {
+    "native": "TSSM",
+    "coordinates": "time latitude longitude",
+    "units": "g TSS m-3",
+    "long_name": "TSS from 645 nm (Petus et al., 2014)"
+  },
+  {
+    "native": "Z_grazing",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg C m-3 d-1",
+    "long_name": "Zooplankton total grazing"
+  },
+  {
+    "native": "Zenith2D",
+    "coordinates": "time latitude longitude",
+    "units": "rad",
+    "long_name": "Solar zenith"
+  },
+  {
+    "native": "ZooL_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Large Zooplankton N"
+  },
+  {
+    "native": "ZooS_N",
+    "coordinates": "time zc latitude longitude",
+    "units": "mg N m-3",
+    "long_name": "Small Zooplankton N"
+  }
+]

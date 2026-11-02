@@ -4,6 +4,8 @@ Catalog dates are documentation snapshots, not evidence of fetched coverage.
 Remote variable names and units are checked again on every fetched partition.
 """
 from dataclasses import asdict, dataclass
+import json
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,23 @@ SOURCES["static"]["zarr_version"] = "202406"
 SOURCES["static"]["zarr_urls"] = [
     "https://s3.waw3-1.cloudferro.com/mdl-arco-time-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/"
     "cmems_mod_glo_bgc_my_0.25deg_static_202406--ext--mask/static.zarr"]
+
+# Full published rectilinear baseline inventory, captured from the live DAS.
+# These 106 columns include diagnostics and model biology, not 106 proven causes.
+EREEFS_FIELDS = json.loads((Path(__file__).parent/"data"/"ereefs_bgc_fields.json").read_text(encoding="utf-8"))
+SOURCES["ereefs_bgc"] = {
+    "provider": "AIMS / CSIRO eReefs", "product": "GBR4_H2p0_B3p1_Cq3b_Dhnd",
+    "backend": "opendap", "dataset_id": "GBR4_H2p0_B3p1_Cq3b_Dhnd/daily.nc",
+    "version": "B3p1_Cq3b_Dhnd_AIMS_2021", "start": "2010-12-01", "catalog_end": "2019-04-30",
+    "url": "https://thredds.ereefs.aims.gov.au/thredds/dodsC/GBR4_H2p0_B3p1_Cq3b_Dhnd/daily.nc",
+    "documentation": "https://thredds.ereefs.aims.gov.au/thredds/catalog/ereefs/GBR4_H2p0_B3p1_Cq3b_Dhnd.html",
+    "resolution": 0.03, "cadence": "daily", "kind": "regional_biogeochemical_model_baseline",
+    "temporal_statistic": "daily_snapshot_02_UTC", "lat_bounds": [-28.696022, -7.036022],
+    "features": [Feature("ereefs_"+item["native"].lower(), item["native"], item["units"],
+                  "simulated_response" if item["native"].startswith(("CS_", "CH_", "SG", "MA_")) else
+                  "diagnostic" if item["native"].startswith(("R_", "month_")) else "input")
+                 for item in EREEFS_FIELDS],
+}
 
 # CDS NetCDF output short names, verified against the ECMWF parameter database.
 ERA5_SHORT = dict(zip([f.native for f in SOURCES["era5"]["features"]],

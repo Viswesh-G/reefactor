@@ -8,15 +8,26 @@ from src.reef.planning import load_config, make_plan, validate_config
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["catalog", "plan", "ingest", "report", "labels"])
+    parser.add_argument("command", choices=["catalog", "plan", "ingest", "report", "labels", "drivers", "model"])
     parser.add_argument("--config", default="configs/research.yaml")
     parser.add_argument("--profile")
     parser.add_argument("--root", help="A completed run directory for report")
     parser.add_argument("--start", help="Inclusive UTC date")
     parser.add_argument("--end", help="Inclusive UTC date")
     parser.add_argument("--bbox", nargs=4, type=float, metavar=("SOUTH", "NORTH", "WEST", "EAST"))
+    parser.add_argument("--parameters", type=int, default=1_000_000)
     args = parser.parse_args()
-    if args.command == "catalog":
+    if args.command == "drivers":
+        from pathlib import Path
+        output = json.loads((Path(__file__).parent/"src/reef/data/bleaching_drivers.json").read_text(encoding="utf-8"))
+    elif args.command == "model":
+        from src.reef.learning import build_forecaster
+        config = load_config(args.config, args.profile)
+        plan = make_plan(config)
+        model = build_forecaster(plan["fields"], args.parameters)
+        output = {"architecture": model.architecture, "source_fields": plan["feature_names"],
+                  "warning": "Capacity preview includes reference/diagnostic fields; choose a scientifically reviewed input contract before training"}
+    elif args.command == "catalog":
         output = {"sources": serializable_catalog(), "derived": DERIVED, "labels": LABEL_SOURCE}
     elif args.command == "report":
         from src.reef.observability import summarize

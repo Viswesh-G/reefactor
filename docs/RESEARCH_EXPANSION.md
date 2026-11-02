@@ -1,5 +1,9 @@
 # Reefactor research expansion — reviewed 2 November 2026
 
+> Phase-one snapshot. The current GBR-only scope, 106 additional eReefs fields,
+> fixed all-feature domain and scalable biological model are documented in
+> [GBR_MODEL_CONTRACT.md](GBR_MODEL_CONTRACT.md).
+
 ## Outcome and scope
 
 The feature registry contains **36 gridded source fields**: 30 daily fields,

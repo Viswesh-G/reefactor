@@ -13,6 +13,8 @@ venv.bak/
 
 # Project Data
 data/
+!/src/reef/data/
+!/src/reef/data/**
 *.nc
 *.zarr/
 *.zarr

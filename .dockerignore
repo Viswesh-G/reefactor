@@ -6,6 +6,8 @@
 venv
 env
 data
+!src/reef/data
+!src/reef/data/**
 __pycache__
 **/__pycache__
 .pytest_cache
