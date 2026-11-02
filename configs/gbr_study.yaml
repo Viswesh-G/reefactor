@@ -1,70 +1,14 @@
-# Full GBR planning request. Run plan and inspect budgets before ingest.
-schema_version: 1
-study:
-  region: GBR
-profile: gbr_long
-profiles:
-  noaa_smoke:
-  - noaa
-  transport:
-  - noaa
-  - physics
-  - era5
-  ocean:
-  - noaa
-  - physics
-  - bgc
-  daily:
-  - noaa
-  - physics
-  - era5
-  - bgc
-  gbr_long:
-  - noaa
-  - physics
-  - era5
-  - bgc
-  gbr_rich:
-  - noaa
-  - physics
-  - era5
-  - ereefs_bgc
-  gbr_rich_public:
-  - noaa
-  - physics
-  - ereefs_bgc
-  monthly_context:
-  - bgc_monthly
-  static_context:
-  - static
+# Full GBR envelope. Source lists, pinned versions and worker limits are shared
+# with the small pilot. Planning performs no network I/O.
+base_config: research.yaml
+profile: gbr_wave_long
 time:
   start: '1993-01-01'
   end: '2026-08-31'
 grid:
-  lat_min: -24.0
+  lat_min: -24.5
   lat_max: -10.0
   lon_min: 142.0
-  lon_max: 154.0
-  resolution: 0.25
-  tile_cells: 16
+  lon_max: 154.25
 execution:
-  workers: 2
-  max_attempts: 3
-  retry_base_seconds: 1.0
-  timeout_seconds: 60
-  source_deadline_seconds: 180
-  max_download_mb: 128
-  max_tile_mb: 64
-  remote_cache_mb: 64
-  max_scratch_mb: 512
   max_output_mb: 8192
-  max_jobs: 10000
-  max_missing_fraction: 0.05
-  require_pinned_versions: false
-storage:
-  root: data/research
-versions:
-  physics: '202311'
-  bgc: '202406'
-  bgc_monthly: '202406'
-  static: '202406'

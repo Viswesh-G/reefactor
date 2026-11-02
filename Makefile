@@ -1,19 +1,16 @@
-<<<<<<< HEAD
-.PHONY: install ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot smoke all clean help
-=======
-.PHONY: install test ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot all clean help
->>>>>>> f4e7c3d9ca7164cafe42588937cc70ba8acb5d4c
+.PHONY: install test research-plan ingest derive_mmm train eval baseline ablation noaa_baseline early_warning plot smoke all clean help
 
-# Python executable from the virtual environment (Windows)
-PYTHON = venv\Scripts\python.exe
-PIP    = venv\Scripts\pip.exe
+# Use the active environment. Override with make PYTHON=/path/to/python.
+PYTHON ?= python
+PIP = $(PYTHON) -m pip
 
 help:
 	@echo.
 	@echo  REEFS_ML — PINN Coral Bleaching Pipeline
 	@echo  =========================================
 	@echo  make install        Install dependencies into the virtual environment
-	@echo  make test           Run fast core contract tests
+	@echo  make test           Run the full suite with research dependencies installed
+	@echo  make research-plan  Review full GBR coverage and resource budgets offline
 	@echo  make all            Run the FULL pipeline: ingest+train+baseline+eval+plot
 	@echo  make smoke          Run end-to-end smoke test (no real data needed, ~30s)
 	@echo  make ingest         Stream satellite data and build the Zarr data store
@@ -32,7 +29,10 @@ install:
 	$(PIP) install -r requirements.txt
 
 test:
-	$(PYTHON) -m unittest discover -s tests -v
+	$(PYTHON) -m pytest tests -q
+
+research-plan:
+	$(PYTHON) run_research.py plan --config configs/gbr_study.yaml --common-window
 
 all:
 	$(PYTHON) run_all.py

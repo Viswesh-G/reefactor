@@ -53,7 +53,7 @@ class HTTPZarrStore(MutableMapping):
                         # Zarr legitimately asks for absent optional metadata/chunks.
                         raise KeyError(key)
                     if response.status_code in (400, 401, 403):
-                        raise PermanentSourceError(f"Zarr HTTP {response.status_code}")
+                        raise PermanentSourceError(f"Zarr HTTP {response.status_code} for {self.url}/{key}")
                     response.raise_for_status()
                     blocks = []
                     for block in response.iter_content(256*1024):

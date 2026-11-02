@@ -13,7 +13,8 @@ import yaml
 from .catalog import SOURCES, serializable_catalog
 from .region import boundary_identity, region_mask
 
-GBR_BOUNDS = {"lat_min": -24.0, "lat_max": -10.0, "lon_min": 142.0, "lon_max": 154.0}
+# Outward-rounded edges cover the entire official polygon on the 0.25-degree lattice.
+GBR_BOUNDS = {"lat_min": -24.5, "lat_max": -10.0, "lon_min": 142.0, "lon_max": 154.25}
 
 
 @dataclass(frozen=True)
@@ -32,11 +33,35 @@ class Job:
         return axis(self.lat_edges), axis(self.lon_edges)
 
 
-def load_config(path, profile=None, overrides=None):
-    with open(path, encoding="utf-8") as handle:
-        cfg = yaml.safe_load(handle)
+def reviewed_window(names):
+    return {"start": max(SOURCES[name]["start"] for name in names),
+            "end": min(SOURCES[name]["catalog_end"] for name in names)}
+
+
+def load_config(path, profile=None, overrides=None, common_window=False):
+    path = Path(path)
+    cfg = yaml.safe_load(path.read_text(encoding="utf-8"))
+    # Full-study requests share the pilot's profiles, source pins and budgets.
+    # A single sibling base keeps inheritance shallow and relocation portable.
+    if "base_config" in cfg:
+        filename = cfg.pop("base_config")
+        if Path(filename).name != filename or filename == path.name:
+            raise ValueError("base_config must be another file in the same directory")
+        base = yaml.safe_load((path.parent / filename).read_text(encoding="utf-8"))
+        if "base_config" in base:
+            raise ValueError("Nested study configurations are unsupported")
+        for section, value in cfg.items():
+            if isinstance(value, dict):
+                base[section].update(value)
+            else:
+                base[section] = value
+        cfg = base
     if profile:
         cfg["profile"] = profile
+    if common_window:
+        if (overrides or {}).get("time"):
+            raise ValueError("Choose the common window or explicit dates")
+        cfg["time"] = reviewed_window(source_names(cfg))
     for section, values in (overrides or {}).items():
         cfg[section].update(values)
     validate_config(cfg)
@@ -120,6 +145,8 @@ def effective_tile_cells(cfg):
             steps = 1 if source["cadence"] in ("monthly", "static") else days
             if source["cadence"] == "hourly":
                 steps = (days+1)*24
+            elif source["cadence"] == "3hourly":
+                steps = days * 8
             native_side = math.ceil(tile*r/source["resolution"])+4  # interpolation/area halo
             largest = max(largest, native_side**2*steps*len(source["features"])*8)
         if largest <= maximum:
@@ -193,13 +220,12 @@ def make_plan(cfg):
         "fingerprint": fingerprint(cfg), "profile": cfg["profile"], "sources": names,
         "jobs": count, "fields": nvars, "largest_float32_tile_bytes": largest,
         "feature_names": [f.name for n in names for f in SOURCES[n]["features"]],
-        "cadence": ("daily" if SOURCES[names[0]]["cadence"] == "hourly" else SOURCES[names[0]]["cadence"]),
+        "cadence": ("daily" if SOURCES[names[0]]["cadence"] in ("hourly", "3hourly") else SOURCES[names[0]]["cadence"]),
         "study": {"region": "GBR", "envelope": GBR_BOUNDS, "boundary": boundary_identity()},
         "effective_tile_cells": effective_tile_cells(cfg),
         "unity": "all_selected_features_at_every_retained_coordinate_for_the_entire_request",
         "estimated_uncompressed_output_bytes": estimated,
-        "reviewed_intersection": {"start": max(SOURCES[n]["start"] for n in names),
-                                  "end": min(SOURCES[n]["catalog_end"] for n in names)},
+        "reviewed_intersection": reviewed_window(names),
         "coverage_status": "catalog_only_until_partitions_pass_runtime_validation",
         "requested": cfg["time"], "grid": cfg["grid"],
         "source_versions": {n: cfg.get("versions", {}).get(n) or SOURCES[n]["version"] for n in names},

@@ -84,6 +84,22 @@ SOURCES = {
                      Feature("primary_production", "nppv", "mg m-3 day-1", minimum=0)],
     },
 }
+SOURCES["waves"] = {
+    "provider": "Copernicus Marine", "product": "GLOBAL_MULTIYEAR_WAV_001_032",
+    "backend": "copernicus", "dataset_id": "cmems_mod_glo_wav_my_0.2deg_PT3H-i",
+    "version": "202411", "zarr_version": "202411", "resolution": 0.2,
+    "cadence": "3hourly", "kind": "wave_reanalysis", "lat_bounds": [-89.8, 89.8],
+    "start": "1980-01-01", "catalog_end": "2026-08-31",
+    "documentation": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_WAV_001_032/services",
+    "zarr_urls": ["https://s3.waw3-1.cloudferro.com/mdl-arco-geo-032/arco/GLOBAL_MULTIYEAR_WAV_001_032/"
+                  "cmems_mod_glo_wav_my_0.2deg_PT3H-i_202411/geoChunked.zarr"],
+    "features": [Feature("significant_wave_height", "VHM0", "m", minimum=0),
+                 Feature("wave_zero_crossing_period", "VTM02", "s", minimum=0),
+                 Feature("wave_energy_period", "VTM10", "s", minimum=0),
+                 Feature("wave_peak_period", "VTPK", "s", minimum=0),
+                 Feature("stokes_drift_u", "VSDX", "m s-1"),
+                 Feature("stokes_drift_v", "VSDY", "m s-1")],
+}
 SOURCES["bgc_monthly"] = {
     **SOURCES["bgc"], "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m", "cadence": "monthly",
     "features": [Feature("iron", "fe", "mmol m-3", minimum=0),
