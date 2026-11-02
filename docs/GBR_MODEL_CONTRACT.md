@@ -1,5 +1,7 @@
 # GBR model contract and driver expansion — 2 November 2026
 
+This is the pre-wave implementation snapshot. The [current study protocol](GBR_STUDY.md) updates the field count, southern park boundary, survey counts and tested overlaps. The fixed-domain rule below still applies.
+
 ## Scope and coordinate guarantee
 
 The active study is **GBR only**. Global products supply GBR subsets. Requests

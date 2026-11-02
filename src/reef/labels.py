@@ -3,6 +3,8 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import polars as pl
@@ -38,9 +40,10 @@ def convert_labels(csv_path, output, gbr_only=False):
     temporary = output.with_suffix(".tmp.parquet")
     selected.sink_parquet(temporary)
     if gbr_only:
-        from .region import contains_points
+        from .region import contains_points, geometry
         frame = pl.read_parquet(temporary)
-        finite = frame.filter(pl.col("lat").is_between(-24, -10) & pl.col("lon").is_between(142, 154))
+        west, south, east, north = geometry().bounds
+        finite = frame.filter(pl.col("lat").is_between(south, north) & pl.col("lon").is_between(west, east))
         finite.filter(pl.Series(contains_points(finite["lat"].to_numpy(), finite["lon"].to_numpy()))).write_parquet(temporary)
     os.replace(temporary, output)
     stored = pl.scan_parquet(output)
@@ -70,7 +73,14 @@ def fetch_labels(root, execution):
     return metadata
 
 
-def sample_history(cube, *, lat, lon, survey_date, features, lookback=84, lead_days=7):
+def gbr_history_end(local_day, lead_days):
+    """Last complete UTC daily field before local survey midnight minus the lead."""
+    midnight = datetime.combine(local_day, time.min, ZoneInfo("Australia/Brisbane"))
+    issuance = midnight.astimezone(timezone.utc) - timedelta(days=lead_days)
+    return issuance.date() - timedelta(days=1)
+
+
+def sample_history(cube, *, lat, lon, survey_date, features, lookback=84, lead_days=7, resolution=None):
     """Sample only a site's containing cell and history ending BEFORE target day.
 
     Returns an xarray object, still lazy. Missing cells remain missing. The label
@@ -78,9 +88,12 @@ def sample_history(cube, *, lat, lon, survey_date, features, lookback=84, lead_d
     """
     if lookback < 1 or lead_days < 1:
         raise ValueError("lookback and lead_days must be positive")
-    if len(cube.lat) < 2 or len(cube.lon) < 2:
-        raise ValueError("Need at least two coordinates to identify cell edges")
-    dy, dx = float(cube.lat[1]-cube.lat[0]), float(cube.lon[1]-cube.lon[0])
+    if resolution is None:
+        if len(cube.lat) < 2 or len(cube.lon) < 2:
+            raise ValueError("Need grid resolution for singleton axes")
+        dy, dx = float(cube.lat[1]-cube.lat[0]), float(cube.lon[1]-cube.lon[0])
+    else:
+        dy = dx = resolution
     row = int(np.floor((lat-(float(cube.lat[0])-dy/2))/dy))
     col = int(np.floor((lon-(float(cube.lon[0])-dx/2))/dx))
     if not (0 <= row < len(cube.lat) and 0 <= col < len(cube.lon)):
@@ -88,7 +101,7 @@ def sample_history(cube, *, lat, lon, survey_date, features, lookback=84, lead_d
     end = np.datetime64(survey_date, "D")-np.timedelta64(lead_days, "D")
     start = end-np.timedelta64(lookback-1, "D")
     sample = cube[features].isel(lat=row, lon=col).sel(time=slice(start, end))
-    if sample.sizes["time"] != lookback:
+    if not np.array_equal(sample.time.values, np.arange(start, end+1)):
         raise ValueError("Incomplete pre-issuance history")
     if "available_not_before" in sample.coords and bool((sample.available_not_before > end).any()):
         raise ValueError("History contains context unavailable at issuance")

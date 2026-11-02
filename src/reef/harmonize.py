@@ -115,7 +115,15 @@ def harmonize(ds, source_name, job):
         expected_dims = {"lat", "lon"} if source["cadence"] == "static" else {"time", "lat", "lon"}
         if set(field.dims) != expected_dims:
             raise ValueError(f"{native}: unexpected dimensions {field.dims}")
-        if source["cadence"] == "hourly":
+        if source["cadence"] == "3hourly":
+            # Instantaneous values on the exact eight UTC slots. Missing native
+            # values invalidate that cell-day before spatial averaging.
+            slots = np.arange(np.datetime64(job.start, "h"), np.datetime64(job.end, "h") + 24,
+                              np.timedelta64(3, "h"))
+            if not np.array_equal(field.time.values, slots):
+                raise ValueError(f"{native}: incomplete or shifted three-hourly UTC slots")
+            field = field.resample(time="1D").mean(skipna=False, keep_attrs=True)
+        elif source["cadence"] == "hourly":
             # ECMWF mean fluxes end at validity time. Shift only those fields.
             if feature.native.startswith("mean_") and feature.name != "mean_sea_level_pressure":
                 field = field.assign_coords(time=field.time - np.timedelta64(1, "h"))
@@ -138,6 +146,9 @@ def harmonize(ds, source_name, job):
                                  dtype=f"datetime64[{unit}]").astype("datetime64[ns]")
             if not np.array_equal(field.time.values.astype("datetime64[ns]"), expected):
                 raise ValueError(f"{native}: incomplete time support")
+            # A verified UTC day may arrive at second or nanosecond precision.
+            # Canonicalize AFTER comparison so exact joins cannot hide a shift.
+            field = field.assign_coords(time=expected)
         result = area_mean(field, lat, lon, job.resolution)
         dims = ("lat", "lon") if source["cadence"] == "static" else ("time", "lat", "lon")
         result = result.transpose(*dims).astype("float32")

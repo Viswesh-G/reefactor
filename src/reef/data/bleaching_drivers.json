@@ -19,7 +19,9 @@
         "cumulative heat dose",
         "prior heatwave and bleaching exposure",
         "recovery temperature",
-        "acclimatization history"
+        "acclimatization history",
+        "time since the last DHW threshold exceedance",
+        "historical within-year SST variance before the event"
       ],
       "sources": [
         "NOAA_CRW",
@@ -44,12 +46,16 @@
         "Secchi depth",
         "CDOM absorption",
         "chlorophyll and fluorescence",
-        "remote sensing reflectance"
+        "remote sensing reflectance",
+        "artificial nocturnal irradiance and duration",
+        "night-light spectrum at tissue depth",
+        "skeletal backscatter and tissue scalar irradiance"
       ],
       "sources": [
         "EREEFS",
         "ERA5",
         "OCEAN_COLOUR",
+        "BLACK_MARBLE",
         "AIMS_MONITORING"
       ],
       "status": "Daily model PAR, attenuation, Secchi and optical diagnostics fetched. ERA5 fields await credentials. Model reflectance is a diagnostic, not an independent stressor."
@@ -90,7 +96,10 @@
         "emersion duration",
         "storm surge",
         "sea level",
-        "cyclone winds and track distance"
+        "cyclone winds and track distance",
+        "primary and secondary swell height and period",
+        "local wind-sea height and period",
+        "near-bed orbital velocity"
       ],
       "sources": [
         "ERA5",
@@ -98,7 +107,7 @@
         "BOM",
         "COPERNICUS_WAVES"
       ],
-      "status": "Sea level fetched. Wave, tide and event adapters remain to be verified; daily means cannot reconstruct short emersion events."
+      "status": "Total significant wave height, three spectral periods and both horizontal surface Stokes drift components fetched. Published swell and wind-sea partitions need conditional-support review. Directions need circular aggregation. Tides and brief emersion require sub-daily data."
     },
     {
       "family": "freshwater and osmotic stress",
@@ -283,14 +292,18 @@
         "antioxidant capacity",
         "reproductive state",
         "prior bleaching and acclimatization",
-        "epigenetic state"
+        "epigenetic state",
+        "planar colony area before bleaching",
+        "previous partial tissue loss"
       ],
       "sources": [
+        "AIMS_COLONY_2022",
+        "ONE_TREE_2025",
         "CORAL_TRAITS",
         "AIMS_MONITORING",
         "NCBI"
       ],
-      "status": "Trait and survey sources identified; many measurements are colony/species-specific. No honest per-coordinate complete historical host/genotype field exists in the retrieved sources."
+      "status": "Pinned 2022 AIMS observations include colony area, taxon, growth form and scored severity at survey plots. CoralWatch supplies sparse growth-form and chart observations. Dense historical genotype, size and energy-reserve fields remain unavailable."
     },
     {
       "family": "symbiosis and microbial condition",
@@ -304,9 +317,13 @@
         "microbiome composition",
         "pathogens",
         "viral load",
-        "coral disease prevalence"
+        "coral disease prevalence",
+        "black band disease onset and progression",
+        "symbiont non-photochemical quenching",
+        "symbiont electron transport rate"
       ],
       "sources": [
+        "ONE_TREE_2025",
         "AIMS_MONITORING",
         "NCBI"
       ],
@@ -325,9 +342,14 @@
         "macroalgal and seagrass cover",
         "distance to shore and river mouths",
         "fetch and exposure",
-        "reef geometry and shading"
+        "reef geometry and shading",
+        "plot surface rugosity",
+        "three-dimensional surface fractal dimension",
+        "cross-shelf position"
       ],
       "sources": [
+        "AIMS_COLONY_2022",
+        "CORALWATCH",
         "GBRMPA",
         "EREEFS",
         "AIMS_MONITORING",
@@ -362,6 +384,10 @@
     }
   ],
   "sources": {
+    "AIMS_COLONY_2022": "https://doi.org/10.5281/zenodo.14752226",
+    "ONE_TREE_2025": "https://doi.org/10.5061/dryad.37pvmcvxr",
+    "BLACK_MARBLE": "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/products/VNP46A2",
+    "CORALWATCH": "https://coralwatch.org/new-coralwatch-interactive-data-map/",
     "NOAA_CRW": "https://coralreefwatch.noaa.gov/product/5km/",
     "COPERNICUS": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description",
     "ERA5": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview",
@@ -379,6 +405,12 @@
   },
   "evidence": [
     "https://oceanservice.noaa.gov/facts/coral_bleach.html",
+    "https://doi.org/10.1111/geb.70105",
+    "https://doi.org/10.1111/gcb.70090",
+    "https://doi.org/10.5061/dryad.37pvmcvxr",
+    "https://www.sciencedirect.com/science/article/pii/S0269749120305303",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC5258690/",
+    "https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2021.695083/full",
     "https://www.nature.com/articles/nclimate1661",
     "https://www.nature.com/articles/s41598-021-01078-9",
     "https://www.aims.gov.au/research-topics/marine-life/marine-microbes/microbial-partnerships",

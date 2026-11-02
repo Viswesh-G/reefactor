@@ -1,0 +1,802 @@
+{
+  "aims_colonies": {
+    "archive": "https://doi.org/10.5281/zenodo.14752226",
+    "attempts": 1,
+    "citation": "\u00c1lvarez-Noriega et al. (2025)",
+    "download_bytes": 788524,
+    "etag": "W/\"05a47851153c29a917100d061d8b0b8a0813dddd1084cef938a3594f30fdb05a\"",
+    "first": "2022-03-28",
+    "last": "2022-04-13",
+    "last_modified": null,
+    "license": "CC-BY-4.0",
+    "ordinal_rows": 4532,
+    "parquet_sha256": "eb4f2c4665b5d688873e2f5bac4fdfbad351a8855ced850b1d31b53d4bff373f",
+    "raw_sha256": "9cabe865fe6720c2551c10f4c15690ede6aa34543ae4941577657ef1378193d7",
+    "rows": 5111,
+    "sites": 26,
+    "stored_bytes": 108844,
+    "taxa": 13,
+    "url": "https://raw.githubusercontent.com/open-AIMS/2022-Bleaching-central-GBR/1d6bb8b3e25fc9b0a9622a1e1cb5342a2e0c6176/Data/bleaching_data.csv"
+  },
+  "aims_overlap": {
+    "distinct_cells": 3,
+    "distinct_histories": 10,
+    "fields_per_history": 20,
+    "fingerprint": "de86dcb9f0c9ffddf6b292b4618721919daa7286df7e9524414b5f11828343a3",
+    "histories": [
+      {
+        "col": 5,
+        "history_end": "2022-03-19",
+        "history_start": "2022-03-06",
+        "ordinal_rows": 716,
+        "row": 0,
+        "rows": 775,
+        "survey_date": "2022-03-28"
+      },
+      {
+        "col": 5,
+        "history_end": "2022-03-20",
+        "history_start": "2022-03-07",
+        "ordinal_rows": 674,
+        "row": 0,
+        "rows": 909,
+        "survey_date": "2022-03-29"
+      },
+      {
+        "col": 5,
+        "history_end": "2022-03-21",
+        "history_start": "2022-03-08",
+        "ordinal_rows": 544,
+        "row": 0,
+        "rows": 643,
+        "survey_date": "2022-03-30"
+      },
+      {
+        "col": 5,
+        "history_end": "2022-03-22",
+        "history_start": "2022-03-09",
+        "ordinal_rows": 553,
+        "row": 0,
+        "rows": 622,
+        "survey_date": "2022-03-31"
+      },
+      {
+        "col": 5,
+        "history_end": "2022-03-24",
+        "history_start": "2022-03-11",
+        "ordinal_rows": 538,
+        "row": 0,
+        "rows": 602,
+        "survey_date": "2022-04-02"
+      },
+      {
+        "col": 0,
+        "history_end": "2022-04-01",
+        "history_start": "2022-03-19",
+        "ordinal_rows": 63,
+        "row": 1,
+        "rows": 63,
+        "survey_date": "2022-04-10"
+      },
+      {
+        "col": 0,
+        "history_end": "2022-04-02",
+        "history_start": "2022-03-20",
+        "ordinal_rows": 394,
+        "row": 1,
+        "rows": 401,
+        "survey_date": "2022-04-11"
+      },
+      {
+        "col": 0,
+        "history_end": "2022-04-03",
+        "history_start": "2022-03-21",
+        "ordinal_rows": 414,
+        "row": 1,
+        "rows": 428,
+        "survey_date": "2022-04-12"
+      },
+      {
+        "col": 0,
+        "history_end": "2022-04-04",
+        "history_start": "2022-03-22",
+        "ordinal_rows": 65,
+        "row": 1,
+        "rows": 70,
+        "survey_date": "2022-04-13"
+      },
+      {
+        "col": 5,
+        "history_end": "2022-03-23",
+        "history_start": "2022-03-10",
+        "ordinal_rows": 571,
+        "row": 1,
+        "rows": 598,
+        "survey_date": "2022-04-01"
+      }
+    ],
+    "label_sha256": "eb4f2c4665b5d688873e2f5bac4fdfbad351a8855ced850b1d31b53d4bff373f",
+    "lead_days": 7,
+    "lookback_days": 14,
+    "row_counts": {
+      "incomplete_history": 0,
+      "matched": 5111,
+      "outside_domain": 0,
+      "outside_grid": 0
+    }
+  },
+  "bco_full_park": {
+    "doi": "10.26008/1912/bco-dmo.773466.2",
+    "excluded_inputs": "all precomputed thermal/climate summaries; protocol fields are not predictors",
+    "license": "CC-BY-4.0",
+    "parquet_bytes": 51108,
+    "parquet_sha256": "4e71289c92f7fe19a4aee666312510c68affe8cc6338c24a71860f0121a9af4f",
+    "provenance": {
+      "attempts": 1,
+      "download_bytes": 16772400,
+      "etag": "\"6534638b0ba811a02d10f8314fb0b712-2\"",
+      "last_modified": "Fri, 30 Jun 2023 16:53:39 GMT",
+      "raw_sha256": "78cc014b1e7887f26f4c44a40d4d9213212f3c6217541c6a1b69e723b61bfacb"
+    },
+    "study_region": "official_GBR_Marine_Park_boundary",
+    "summary": {
+      "first": "1992-04-15",
+      "last": "2017-11-04",
+      "rows": 2098,
+      "sites": 994,
+      "valid_targets": 1880
+    },
+    "url": "https://datadocs.bco-dmo.org/dataset/773466/file/B11vA82u7y2Owp/global_bleaching_environmental.csv",
+    "version": 2
+  },
+  "catalog_plans": {
+    "gbr_all_daily": {
+      "cadence": "daily",
+      "coverage_status": "catalog_only_until_partitions_pass_runtime_validation",
+      "estimated_uncompressed_output_bytes": 1643047056,
+      "fields": 142,
+      "grid": {
+        "lat_max": -10.0,
+        "lat_min": -24.5,
+        "lon_max": 154.25,
+        "lon_min": 142.0,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "jobs": 4747,
+      "reviewed_intersection": {
+        "end": "2019-04-30",
+        "start": "2010-12-01"
+      },
+      "source_versions": {
+        "bgc": "202406",
+        "era5": "ERA5",
+        "ereefs_bgc": "B3p1_Cq3b_Dhnd_AIMS_2021",
+        "noaa": "v3.1",
+        "physics": "202311",
+        "waves": "202411"
+      },
+      "sources": [
+        "noaa",
+        "physics",
+        "era5",
+        "bgc",
+        "waves",
+        "ereefs_bgc"
+      ]
+    },
+    "gbr_wave_long": {
+      "cadence": "daily",
+      "coverage_status": "catalog_only_until_partitions_pass_runtime_validation",
+      "estimated_uncompressed_output_bytes": 4344324352,
+      "fields": 36,
+      "grid": {
+        "lat_max": -10.0,
+        "lat_min": -24.5,
+        "lon_max": 154.25,
+        "lon_min": 142.0,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "jobs": 3232,
+      "reviewed_intersection": {
+        "end": "2026-08-31",
+        "start": "1993-01-01"
+      },
+      "source_versions": {
+        "bgc": "202406",
+        "era5": "ERA5",
+        "noaa": "v3.1",
+        "physics": "202311",
+        "waves": "202411"
+      },
+      "sources": [
+        "noaa",
+        "physics",
+        "era5",
+        "bgc",
+        "waves"
+      ]
+    },
+    "gbr_wave_public": {
+      "cadence": "daily",
+      "coverage_status": "catalog_only_until_partitions_pass_runtime_validation",
+      "estimated_uncompressed_output_bytes": 2424180992,
+      "fields": 20,
+      "grid": {
+        "lat_max": -10.0,
+        "lat_min": -24.5,
+        "lon_max": 154.25,
+        "lon_min": 142.0,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "jobs": 3232,
+      "reviewed_intersection": {
+        "end": "2026-08-31",
+        "start": "1993-01-01"
+      },
+      "source_versions": {
+        "bgc": "202406",
+        "noaa": "v3.1",
+        "physics": "202311",
+        "waves": "202411"
+      },
+      "sources": [
+        "noaa",
+        "physics",
+        "bgc",
+        "waves"
+      ]
+    }
+  },
+  "chart_2026_verified_history": {
+    "cell": [
+      -23.125,
+      150.875
+    ],
+    "finite_fields": 20,
+    "hard_corals": 64,
+    "last_complete_utc_day": "2026-08-12",
+    "local_survey_date": "2026-08-21",
+    "min_lead_days": 7,
+    "run": "895898a7f4676e41",
+    "utc_days": 14
+  },
+  "chart_design": {
+    "calendar_geometry_eligible": 4557,
+    "chart_sha256": "3a851c59b7d76ee9cdcc3a3bb30032793dfe8622d92e27f169bd701af70a0c92",
+    "eligible_dated_surveys": 4674,
+    "first_eligible_in_window": "2003-01-01",
+    "folds": [
+      {
+        "test": {
+          "blocks": 1,
+          "cells": 1,
+          "first": "2025-09-20",
+          "last": "2025-11-09",
+          "surveys": 15
+        },
+        "train": {
+          "blocks": 21,
+          "cells": 58,
+          "first": "2003-01-01",
+          "last": "2021-12-24",
+          "surveys": 1153
+        },
+        "validation": {
+          "blocks": 6,
+          "cells": 9,
+          "first": "2022-03-04",
+          "last": "2024-10-27",
+          "surveys": 78
+        }
+      },
+      {
+        "test": {
+          "blocks": 1,
+          "cells": 1,
+          "first": "2025-09-08",
+          "last": "2025-09-08",
+          "surveys": 2
+        },
+        "train": {
+          "blocks": 18,
+          "cells": 47,
+          "first": "2005-03-09",
+          "last": "2021-12-24",
+          "surveys": 453
+        },
+        "validation": {
+          "blocks": 3,
+          "cells": 6,
+          "first": "2022-01-27",
+          "last": "2024-12-16",
+          "surveys": 1237
+        }
+      },
+      {
+        "test": {
+          "blocks": 3,
+          "cells": 7,
+          "first": "2025-01-23",
+          "last": "2026-08-12",
+          "surveys": 1059
+        },
+        "train": {
+          "blocks": 15,
+          "cells": 40,
+          "first": "2005-02-26",
+          "last": "2021-10-15",
+          "surveys": 272
+        },
+        "validation": {
+          "blocks": 5,
+          "cells": 7,
+          "first": "2022-05-06",
+          "last": "2024-11-18",
+          "surveys": 153
+        }
+      },
+      {
+        "test": {
+          "blocks": 3,
+          "cells": 3,
+          "first": "2025-02-12",
+          "last": "2026-08-21",
+          "surveys": 59
+        },
+        "train": {
+          "blocks": 14,
+          "cells": 47,
+          "first": "2003-01-01",
+          "last": "2021-12-02",
+          "surveys": 875
+        },
+        "validation": {
+          "blocks": 2,
+          "cells": 2,
+          "first": "2022-03-26",
+          "last": "2024-05-20",
+          "surveys": 5
+        }
+      },
+      {
+        "test": {
+          "blocks": 2,
+          "cells": 2,
+          "first": "2026-05-06",
+          "last": "2026-05-07",
+          "surveys": 3
+        },
+        "train": {
+          "blocks": 23,
+          "cells": 69,
+          "first": "2003-01-01",
+          "last": "2021-12-24",
+          "surveys": 1456
+        },
+        "validation": {
+          "blocks": 1,
+          "cells": 1,
+          "first": "2022-03-10",
+          "last": "2022-03-10",
+          "surveys": 1
+        }
+      }
+    ],
+    "last_eligible_in_window": "2026-08-21",
+    "lead_days": 7,
+    "lookback_days": 14,
+    "profile": "gbr_wave_long",
+    "requested": {
+      "end": "2026-08-31",
+      "start": "1993-01-01"
+    },
+    "spatial_buffer_km": 50,
+    "status": "design_only_pending_full_cube_domain_and_out_of_sample_evaluation"
+  },
+  "coralwatch": {
+    "decoded_bytes": 126050633,
+    "endpoint": "https://coralwatchdata.org/api/download",
+    "endpoint_type": "citizen_science_colour_chart",
+    "first": "2002-12-31",
+    "gbr_rows": 140923,
+    "global_rows_streamed": 591159,
+    "last": "2026-10-31",
+    "parquet_sha256": "3a851c59b7d76ee9cdcc3a3bb30032793dfe8622d92e27f169bd701af70a0c92",
+    "raw_sha256": "03e6888802334a2696f0323f556a803035dd93b0420c6b9744f2c7b38bb516c9",
+    "source": "https://coralwatch.org/new-coralwatch-interactive-data-map/",
+    "stored_bytes": 1041009,
+    "survey_ids": 7026,
+    "undated_rows": 30,
+    "valid_chart_rows": 140917
+  },
+  "driver_entries": 190,
+  "dryad_one_tree": {
+    "native_csv_sha256": {
+      "4422743_tracking": "754fd5fd13857dc0a7d9bbf34259fdc71e12e27d5f388e7006dc9b66573209d2",
+      "4422744_crw_sst": "ac0c272dc6ff106fda2d9591cf28636621816b1569226f2f96fca07ee08ee214",
+      "4422745_reef_depth_temperature": "f94bc9769f38ae0f60ad8f005841f0fcf7e349d793afec89df52c65002005678",
+      "4422746_category": "576a863c470582db1a05c84b6c8bf37cddf8f91a22333c2b730277312284d571"
+    },
+    "release": "https://doi.org/10.5061/dryad.37pvmcvxr",
+    "status": "reviewed metadata only; anonymous API requires a bearer token, public HTML download served browser validation",
+    "version_id": 403457
+  },
+  "limitations": [
+    "No full-GBR historical completeness or model skill claim",
+    "Southern 1993 tile [-24.5,-23.25,151.75,152.75] received HTTP 403 and did not publish",
+    "ERA5 requires live CDS verification",
+    "Docker Compose configuration validated but engine unavailable for image test",
+    "Original percent and SST trainer has no CoralWatch likelihood or geographic fold ingestion"
+  ],
+  "local_verification": {
+    "compileall": "passed",
+    "compose_config": "passed",
+    "docker_engine": "unavailable",
+    "existing_protocol_fixture_warnings": [
+      "WebOb cgi deprecation",
+      "NumPy extension binary-size warning"
+    ],
+    "make_executable": "unavailable; underlying Python commands executed directly",
+    "offline_suite_seconds": 11.89,
+    "pytest_passed": 34
+  },
+  "review_date": "2026-11-02",
+  "roles": {
+    "context": 1,
+    "diagnostic": 33,
+    "input": 96,
+    "mask": 1,
+    "reference": 1,
+    "simulated_response": 16
+  },
+  "tested_runs": {
+    "1a7fcd635b2a344b": {
+      "dates": {
+        "end": "1993-01-03",
+        "start": "1993-01-01"
+      },
+      "domain": {
+        "complete_cells": 14,
+        "excluded_cells": 2,
+        "feature_names": [
+          "sea_surface_temperature",
+          "degree_heating_weeks",
+          "ocean_temperature",
+          "salinity",
+          "water_u",
+          "water_v",
+          "sea_level",
+          "mixed_layer_depth",
+          "chlorophyll",
+          "nitrate",
+          "phosphate",
+          "silicate",
+          "oxygen",
+          "primary_production",
+          "significant_wave_height",
+          "wave_zero_crossing_period",
+          "wave_energy_period",
+          "wave_peak_period",
+          "stokes_drift_u",
+          "stokes_drift_v"
+        ],
+        "path": "model_domain.zarr",
+        "rule": "all_features_finite_for_all_requested_times"
+      },
+      "fingerprint": "1a7fcd635b2a344b126fb566a0218c8b03a4ddae23a8ef50da4d8530d22daa4a",
+      "grid": {
+        "lat_max": -17.0,
+        "lat_min": -18.0,
+        "lon_max": 147.0,
+        "lon_min": 146.0,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "run_metrics": {
+        "bytes": 96274,
+        "elapsed_seconds": 38.48499999998603,
+        "partitions": 1,
+        "peak_rss_bytes": 229404672,
+        "ram_cache_hits": 237,
+        "ram_cache_misses": 84,
+        "ram_cache_peak_bytes": 37553993
+      },
+      "status": "READY",
+      "transfer_bytes_by_source": {
+        "bgc": 6632317,
+        "noaa": 39596,
+        "physics": 15304597,
+        "waves": 15617079
+      }
+    },
+    "3b2f114b190c0b15": {
+      "dates": {
+        "end": "2026-08-31",
+        "start": "2026-08-29"
+      },
+      "domain": {
+        "complete_cells": 14,
+        "excluded_cells": 2,
+        "feature_names": [
+          "sea_surface_temperature",
+          "degree_heating_weeks",
+          "ocean_temperature",
+          "salinity",
+          "water_u",
+          "water_v",
+          "sea_level",
+          "mixed_layer_depth",
+          "chlorophyll",
+          "nitrate",
+          "phosphate",
+          "silicate",
+          "oxygen",
+          "primary_production",
+          "significant_wave_height",
+          "wave_zero_crossing_period",
+          "wave_energy_period",
+          "wave_peak_period",
+          "stokes_drift_u",
+          "stokes_drift_v"
+        ],
+        "path": "model_domain.zarr",
+        "rule": "all_features_finite_for_all_requested_times"
+      },
+      "fingerprint": "3b2f114b190c0b15c7eff8ad7014128e39eeba83766a61a54ffcc6dac6ce949f",
+      "grid": {
+        "lat_max": -17.0,
+        "lat_min": -18.0,
+        "lon_max": 147.0,
+        "lon_min": 146.0,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "run_metrics": {
+        "bytes": 96349,
+        "elapsed_seconds": 38.64000000001397,
+        "partitions": 1,
+        "peak_rss_bytes": 221093888,
+        "ram_cache_hits": 237,
+        "ram_cache_misses": 84,
+        "ram_cache_peak_bytes": 29309342
+      },
+      "status": "READY",
+      "transfer_bytes_by_source": {
+        "bgc": 4126435,
+        "noaa": 39596,
+        "physics": 14151457,
+        "waves": 11031450
+      }
+    },
+    "895898a7f4676e41": {
+      "dates": {
+        "end": "2026-08-12",
+        "start": "2026-07-30"
+      },
+      "domain": {
+        "complete_cells": 3,
+        "excluded_cells": 1,
+        "feature_names": [
+          "sea_surface_temperature",
+          "degree_heating_weeks",
+          "ocean_temperature",
+          "salinity",
+          "water_u",
+          "water_v",
+          "sea_level",
+          "mixed_layer_depth",
+          "chlorophyll",
+          "nitrate",
+          "phosphate",
+          "silicate",
+          "oxygen",
+          "primary_production",
+          "significant_wave_height",
+          "wave_zero_crossing_period",
+          "wave_energy_period",
+          "wave_peak_period",
+          "stokes_drift_u",
+          "stokes_drift_v"
+        ],
+        "path": "model_domain.zarr",
+        "rule": "all_features_finite_for_all_requested_times"
+      },
+      "fingerprint": "895898a7f4676e41a7be420dfbea471d6cb335e43a0fd456f0927073bf85ef32",
+      "grid": {
+        "lat_max": -23.0,
+        "lat_min": -23.5,
+        "lon_max": 151.25,
+        "lon_min": 150.75,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "run_metrics": {
+        "bytes": 174090,
+        "elapsed_seconds": 38.51600000000326,
+        "partitions": 2,
+        "peak_rss_bytes": 205611008,
+        "ram_cache_hits": 432,
+        "ram_cache_misses": 42,
+        "ram_cache_peak_bytes": 11667749
+      },
+      "status": "READY",
+      "transfer_bytes_by_source": {
+        "bgc": 4855029,
+        "noaa": 67704,
+        "physics": 3544923,
+        "waves": 3267797
+      }
+    },
+    "de86dcb9f0c9ffdd": {
+      "dates": {
+        "end": "2022-04-04",
+        "start": "2022-03-06"
+      },
+      "domain": {
+        "complete_cells": 12,
+        "excluded_cells": 0,
+        "feature_names": [
+          "sea_surface_temperature",
+          "degree_heating_weeks",
+          "ocean_temperature",
+          "salinity",
+          "water_u",
+          "water_v",
+          "sea_level",
+          "mixed_layer_depth",
+          "chlorophyll",
+          "nitrate",
+          "phosphate",
+          "silicate",
+          "oxygen",
+          "primary_production",
+          "significant_wave_height",
+          "wave_zero_crossing_period",
+          "wave_energy_period",
+          "wave_peak_period",
+          "stokes_drift_u",
+          "stokes_drift_v"
+        ],
+        "path": "model_domain.zarr",
+        "rule": "all_features_finite_for_all_requested_times"
+      },
+      "fingerprint": "de86dcb9f0c9ffddf6b292b4618721919daa7286df7e9524414b5f11828343a3",
+      "grid": {
+        "lat_max": -18.5,
+        "lat_min": -19.0,
+        "lon_max": 147.75,
+        "lon_min": 146.25,
+        "resolution": 0.25,
+        "tile_cells": 16
+      },
+      "run_metrics": {
+        "bytes": 206654,
+        "elapsed_seconds": 76.90600000001723,
+        "partitions": 2,
+        "peak_rss_bytes": 228413440,
+        "ram_cache_hits": 1242,
+        "ram_cache_misses": 72,
+        "ram_cache_peak_bytes": 33731987
+      },
+      "status": "READY",
+      "transfer_bytes_by_source": {
+        "bgc": 16725649,
+        "noaa": 252568,
+        "physics": 9971722,
+        "waves": 7034616
+      }
+    }
+  },
+  "wave_metadata": {
+    "id": "cmems_mod_glo_wav_my_0.2deg_PT3H-i",
+    "url": "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-032/arco/GLOBAL_MULTIYEAR_WAV_001_032/cmems_mod_glo_wav_my_0.2deg_PT3H-i_202411/geoChunked.zarr",
+    "variables": {
+      "VHM0": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_significant_height",
+        "units": "m"
+      },
+      "VHM0_SW1": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_primary_swell_wave_significant_height",
+        "units": "m"
+      },
+      "VHM0_SW2": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_secondary_swell_wave_significant_height",
+        "units": "m"
+      },
+      "VHM0_WW": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wind_wave_significant_height",
+        "units": "m"
+      },
+      "VMDR": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_from_direction",
+        "units": "degree"
+      },
+      "VMDR_SW1": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_primary_swell_wave_from_direction",
+        "units": "degree"
+      },
+      "VMDR_SW2": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_secondary_swell_wave_from_direction",
+        "units": "degree"
+      },
+      "VMDR_WW": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wind_wave_from_direction",
+        "units": "degree"
+      },
+      "VPED": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_from_direction_at_variance_spectral_density_maximum",
+        "units": "degree"
+      },
+      "VSDX": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_stokes_drift_x_velocity",
+        "units": "m s-1"
+      },
+      "VSDY": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_stokes_drift_y_velocity",
+        "units": "m s-1"
+      },
+      "VTM01_SW1": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_primary_swell_wave_mean_period",
+        "units": "s"
+      },
+      "VTM01_SW2": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_secondary_swell_wave_mean_period",
+        "units": "s"
+      },
+      "VTM01_WW": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wind_wave_mean_period",
+        "units": "s"
+      },
+      "VTM02": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_mean_period_from_variance_spectral_density_second_frequency_moment",
+        "units": "s"
+      },
+      "VTM10": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_mean_period_from_variance_spectral_density_inverse_frequency_moment",
+        "units": "s"
+      },
+      "VTPK": {
+        "first": "1980-01-01T00:00:00+00:00",
+        "last": "2026-08-31T21:00:00+00:00",
+        "standard_name": "sea_surface_wave_period_at_variance_spectral_density_maximum",
+        "units": "s"
+      }
+    },
+    "version": "202411"
+  }
+}
