@@ -1,0 +1,388 @@
+{
+  "reviewed": "2026-11-02",
+  "scope": "Great Barrier Reef only; use global products as sources for GBR subsets",
+  "interpretation": "A living inventory of known mechanisms, susceptibility modifiers, proxies and screening candidates. Neither a closed causal list nor a claim that all have dense measured coverage.",
+  "admission_rule": "Every model coordinate must have the same complete, reviewed input contract. Sparse or unavailable variables are never spread across the GBR or replaced by fabricated values.",
+  "families": [
+    {
+      "family": "temperature and thermal history",
+      "parameters": [
+        "foundation SST",
+        "near-surface and subsurface temperature",
+        "daily maximum and minimum",
+        "diurnal temperature range",
+        "thermal variability",
+        "warming and cooling rate",
+        "warm anomaly",
+        "cold anomaly and cold snaps",
+        "duration above local threshold",
+        "cumulative heat dose",
+        "prior heatwave and bleaching exposure",
+        "recovery temperature",
+        "acclimatization history"
+      ],
+      "sources": [
+        "NOAA_CRW",
+        "COPERNICUS",
+        "EREEFS",
+        "AIMS_MONITORING"
+      ],
+      "status": "Core temperatures fetched; extremes and vertical history need separate native-cadence/depth requests; thermal indices are derived."
+    },
+    {
+      "family": "light and optical stress",
+      "parameters": [
+        "surface shortwave",
+        "underwater PAR",
+        "PAR at depth",
+        "UV irradiance",
+        "spectral irradiance",
+        "cloud cover",
+        "solar zenith",
+        "shading",
+        "diffuse attenuation Kd490 and KdPAR",
+        "Secchi depth",
+        "CDOM absorption",
+        "chlorophyll and fluorescence",
+        "remote sensing reflectance"
+      ],
+      "sources": [
+        "EREEFS",
+        "ERA5",
+        "OCEAN_COLOUR",
+        "AIMS_MONITORING"
+      ],
+      "status": "Daily model PAR, attenuation, Secchi and optical diagnostics fetched. ERA5 fields await credentials. Model reflectance is a diagnostic, not an independent stressor."
+    },
+    {
+      "family": "currents and mixing",
+      "parameters": [
+        "eastward current",
+        "northward current",
+        "vertical velocity",
+        "current speed",
+        "shear",
+        "horizontal and vertical diffusivity",
+        "turbulence",
+        "mixed-layer depth",
+        "density stratification",
+        "thermocline depth",
+        "upwelling",
+        "residence time and flushing",
+        "reef-lagoon exchange"
+      ],
+      "sources": [
+        "COPERNICUS",
+        "EREEFS"
+      ],
+      "status": "Surface currents and mixed layer fetched. Vertical profiles, native hydrodynamic fields and residence-time diagnostics require additional verified requests; surface products cannot determine them all."
+    },
+    {
+      "family": "waves tides and exposure",
+      "parameters": [
+        "significant wave height",
+        "wave period",
+        "wave direction",
+        "Stokes drift",
+        "wave and current bed stress",
+        "tidal elevation",
+        "tidal range",
+        "emersion duration",
+        "storm surge",
+        "sea level",
+        "cyclone winds and track distance"
+      ],
+      "sources": [
+        "ERA5",
+        "EREEFS",
+        "BOM",
+        "COPERNICUS_WAVES"
+      ],
+      "status": "Sea level fetched. Wave, tide and event adapters remain to be verified; daily means cannot reconstruct short emersion events."
+    },
+    {
+      "family": "freshwater and osmotic stress",
+      "parameters": [
+        "salinity",
+        "salinity anomaly",
+        "freshwater exposure duration",
+        "rainfall",
+        "evaporation",
+        "river discharge",
+        "plume fraction",
+        "runoff and flood exposure",
+        "conductivity"
+      ],
+      "sources": [
+        "EREEFS",
+        "COPERNICUS",
+        "ERA5",
+        "BOM",
+        "QUEENSLAND_WATER"
+      ],
+      "status": "Salinity fetched. River and conductivity observations are sparse/site-specific; a station discharge is not an ocean-grid measurement."
+    },
+    {
+      "family": "oxygen and redox",
+      "parameters": [
+        "dissolved oxygen",
+        "oxygen saturation",
+        "hypoxia duration",
+        "biochemical oxygen demand",
+        "respiration",
+        "sediment oxygen demand",
+        "redox potential",
+        "sulfide"
+      ],
+      "sources": [
+        "EREEFS",
+        "COPERNICUS",
+        "AIMS_MONITORING",
+        "QUEENSLAND_WATER"
+      ],
+      "status": "Oxygen, saturation and modeled BOD fetched. Daily fields do not resolve nocturnal minima; redox/sulfide lack complete GBR grids."
+    },
+    {
+      "family": "nutrient supply and imbalance",
+      "parameters": [
+        "nitrate",
+        "nitrite",
+        "ammonium",
+        "dissolved inorganic nitrogen",
+        "phosphate and dissolved inorganic phosphorus",
+        "silicate",
+        "iron",
+        "total nitrogen",
+        "total phosphorus",
+        "particulate inorganic phosphorus",
+        "dissolved organic nitrogen and phosphorus",
+        "nitrogen-to-phosphorus ratio",
+        "nitrogen fixation"
+      ],
+      "sources": [
+        "EREEFS",
+        "COPERNICUS",
+        "QUEENSLAND_WATER",
+        "AIMS_MONITORING"
+      ],
+      "status": "Most listed nutrient pools fetched as model outputs. Iron is monthly in the global product; nitrite requires separate verified source coverage. Ratios need elemental units and molar conversion."
+    },
+    {
+      "family": "carbonate chemistry",
+      "parameters": [
+        "pH",
+        "dissolved inorganic carbon",
+        "total alkalinity",
+        "surface pCO2",
+        "carbonate",
+        "bicarbonate",
+        "aragonite saturation",
+        "calcite saturation"
+      ],
+      "sources": [
+        "EREEFS",
+        "COPERNICUS",
+        "AIMS_MONITORING"
+      ],
+      "status": "Daily eReefs pH, DIC, alkalinity, pCO2, carbonate, bicarbonate and aragonite saturation fetched. Preserve native unit/scale definitions; calcite saturation is not inferred without a validated solver."
+    },
+    {
+      "family": "sediment and water clarity",
+      "parameters": [
+        "total suspended solids",
+        "fine suspended sediment",
+        "suspended inorganic matter",
+        "dust",
+        "particle size fractions",
+        "turbidity",
+        "sedimentation and deposition rate",
+        "resuspension",
+        "smothering and abrasion",
+        "seabed sediment type"
+      ],
+      "sources": [
+        "EREEFS",
+        "AIMS_MONITORING",
+        "QUEENSLAND_WATER",
+        "OCEAN_COLOUR"
+      ],
+      "status": "TSS, fine sediment, inorganic particles, dust and optical clarity fetched. Native sediment layers have extra vertical dimensions; they are not silently coerced into surface fields."
+    },
+    {
+      "family": "food and organic energy supply",
+      "parameters": [
+        "small and large phytoplankton",
+        "small and large zooplankton",
+        "primary production",
+        "grazing",
+        "dissolved organic carbon",
+        "labile and refractory detritus",
+        "particulate carbon",
+        "heterotrophic feeding opportunity",
+        "algal competition"
+      ],
+      "sources": [
+        "EREEFS",
+        "COPERNICUS",
+        "AIMS_MONITORING"
+      ],
+      "status": "Model plankton, production, grazing and several organic pools fetched. Feeding rate, prey capture and energetic benefit are not directly measured by plankton concentration."
+    },
+    {
+      "family": "herbicides and pesticides",
+      "parameters": [
+        "diuron",
+        "atrazine",
+        "hexazinone",
+        "tebuthiuron",
+        "ametryn",
+        "metolachlor",
+        "imidacloprid",
+        "2,4-D",
+        "glyphosate",
+        "mixture exposure and toxicity"
+      ],
+      "sources": [
+        "QUEENSLAND_PESTICIDES",
+        "EREEFS_NATIVE_DIURON"
+      ],
+      "status": "Public monitoring sources identified and diuron model metadata/time axis fetched. No pesticide has been admitted as a complete GBR input. Compound-specific effects and doses differ; do not claim every chemical is a proven bleaching cause."
+    },
+    {
+      "family": "other contaminants and pollution",
+      "parameters": [
+        "copper",
+        "zinc",
+        "cadmium",
+        "lead",
+        "mercury",
+        "hydrocarbons and PAHs",
+        "PCBs",
+        "sunscreen ingredients",
+        "sewage and wastewater exposure",
+        "microplastics",
+        "industrial effluent"
+      ],
+      "sources": [
+        "QUEENSLAND_WATER",
+        "AIMS_MONITORING"
+      ],
+      "status": "Screening candidates and co-stressors. Dense continuous all-GBR measured products not identified; individual experiments or sparse samples cannot supply a global daily grid."
+    },
+    {
+      "family": "host susceptibility",
+      "parameters": [
+        "species and genus",
+        "host genotype",
+        "growth form",
+        "colony size and age",
+        "tissue thickness",
+        "tissue biomass",
+        "lipid and energy reserves",
+        "pigments and photoprotection",
+        "antioxidant capacity",
+        "reproductive state",
+        "prior bleaching and acclimatization",
+        "epigenetic state"
+      ],
+      "sources": [
+        "CORAL_TRAITS",
+        "AIMS_MONITORING",
+        "NCBI"
+      ],
+      "status": "Trait and survey sources identified; many measurements are colony/species-specific. No honest per-coordinate complete historical host/genotype field exists in the retrieved sources."
+    },
+    {
+      "family": "symbiosis and microbial condition",
+      "parameters": [
+        "Symbiodiniaceae identity and community composition",
+        "symbiont density",
+        "symbiont chlorophyll",
+        "symbiont thermal tolerance",
+        "photochemical efficiency Fv/Fm",
+        "oxidative stress and ROS",
+        "microbiome composition",
+        "pathogens",
+        "viral load",
+        "coral disease prevalence"
+      ],
+      "sources": [
+        "AIMS_MONITORING",
+        "NCBI"
+      ],
+      "status": "Some modeled symbiont states were fetched and explicitly labeled simulated_response. They are not measured holobiont biology or observed bleaching labels. Real physiological and microbial time series remain sparse."
+    },
+    {
+      "family": "habitat and geography",
+      "parameters": [
+        "reef depth",
+        "bathymetry",
+        "slope",
+        "aspect and orientation",
+        "reef zone",
+        "substrate",
+        "coral and benthic cover",
+        "macroalgal and seagrass cover",
+        "distance to shore and river mouths",
+        "fetch and exposure",
+        "reef geometry and shading"
+      ],
+      "sources": [
+        "GBRMPA",
+        "EREEFS",
+        "AIMS_MONITORING",
+        "CORAL_TRAITS"
+      ],
+      "status": "Official GBR boundary and coarse bathymetry fetched. Colony/reef depth differs from model-cell bathymetry; reef-level habitats and traits need explicit spatial joins."
+    },
+    {
+      "family": "ecological disturbance and climate context",
+      "parameters": [
+        "crown-of-thorns abundance",
+        "herbivorous fish abundance",
+        "disease and predation",
+        "cyclone damage",
+        "dredging",
+        "shipping and anchoring",
+        "fishing pressure",
+        "tourism pressure",
+        "marine protection status",
+        "ENSO",
+        "IOD",
+        "seasonality",
+        "monsoon and long-term warming"
+      ],
+      "sources": [
+        "AIMS_MONITORING",
+        "GBRMPA",
+        "BOM",
+        "ERA5"
+      ],
+      "status": "Context, confounders and recovery modifiers; not all are direct bleaching causes. Do not substitute coral mortality or cover loss for bleaching. Derived climate indices do not add independent measurements."
+    }
+  ],
+  "sources": {
+    "NOAA_CRW": "https://coralreefwatch.noaa.gov/product/5km/",
+    "COPERNICUS": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description",
+    "ERA5": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview",
+    "EREEFS": "https://thredds.ereefs.aims.gov.au/thredds/catalog/catalog.html",
+    "EREEFS_NATIVE_DIURON": "https://thredds.nci.org.au/thredds/catalog/catalogs/fx3/catalog.html?dataset=GBR1_H2p0_Cq3pe1_Dhnd",
+    "COPERNICUS_WAVES": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_WAV_001_032/description",
+    "OCEAN_COLOUR": "https://www.ecmwf.int/en/forecasts/datasets/ocean-colour-1997-present-derived-satellite-observations",
+    "AIMS_MONITORING": "https://www.aims.gov.au/data",
+    "QUEENSLAND_WATER": "https://apps.des.qld.gov.au/water-data-portal/about",
+    "QUEENSLAND_PESTICIDES": "https://pesticidereportingportal.des.qld.gov.au/about.html",
+    "BOM": "https://www.bom.gov.au/waterdata/",
+    "GBRMPA": "https://www.gbrmpa.gov.au/about-us/spatial-data-information-services",
+    "CORAL_TRAITS": "https://www.coraltraits.org/procedures",
+    "NCBI": "https://www.ncbi.nlm.nih.gov/biosample/"
+  },
+  "evidence": [
+    "https://oceanservice.noaa.gov/facts/coral_bleach.html",
+    "https://www.nature.com/articles/nclimate1661",
+    "https://www.nature.com/articles/s41598-021-01078-9",
+    "https://www.aims.gov.au/research-topics/marine-life/marine-microbes/microbial-partnerships",
+    "https://www.waterquality.gov.au/anz-guidelines/resources/case-study/great-barrier-reef",
+    "https://www.reefplan.qld.gov.au/tracking-progress/paddock-to-reef/modelling-and-monitoring"
+  ]
+}

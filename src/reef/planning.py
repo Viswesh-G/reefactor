@@ -11,6 +11,9 @@ import numpy as np
 import yaml
 
 from .catalog import SOURCES, serializable_catalog
+from .region import boundary_identity, region_mask
+
+GBR_BOUNDS = {"lat_min": -24.0, "lat_max": -10.0, "lon_min": 142.0, "lon_max": 154.0}
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,11 @@ def validate_config(cfg):
     if "monthly" in cadences and (start.day != 1 or end.day != calendar.monthrange(end.year, end.month)[1]):
         raise ValueError("Monthly context requires whole calendar months")
     grid = cfg["grid"]
+    if cfg.get("study", {}).get("region", "GBR") != "GBR":
+        raise ValueError("This research path is scoped to GBR only")
+    if any(grid[k] < GBR_BOUNDS[k] for k in ("lat_min", "lon_min")) or any(
+            grid[k] > GBR_BOUNDS[k] for k in ("lat_max", "lon_max")):
+        raise ValueError("Requested bbox lies outside the configured GBR study envelope")
     r = float(grid["resolution"])
     if not math.isfinite(r) or r <= 0 or r > 5:
         raise ValueError("resolution must be positive and <= 5 degrees")
@@ -89,6 +97,8 @@ def validate_config(cfg):
     for key in ("timeout_seconds", "max_download_mb", "max_tile_mb", "max_scratch_mb", "max_output_mb"):
         if not math.isfinite(exe[key]) or exe[key] <= 0:
             raise ValueError(f"{key} must be positive and finite")
+    if not math.isfinite(exe.get("source_deadline_seconds", 180)) or exe.get("source_deadline_seconds", 180) <= 0:
+        raise ValueError("source_deadline_seconds must be positive and finite")
     if not 0 <= exe["max_missing_fraction"] < 1 or exe["retry_base_seconds"] < 0:
         raise ValueError("Invalid missing fraction or retry delay")
     if not math.isfinite(exe.get("remote_cache_mb", 0)) or exe.get("remote_cache_mb", 0) < 0:
@@ -97,12 +107,36 @@ def validate_config(cfg):
         raise ValueError("Storage root must name a directory")
 
 
+def effective_tile_cells(cfg):
+    """Budget the selected native arrays, not only their smaller output grid."""
+    tile, r = cfg["grid"]["tile_cells"], cfg["grid"]["resolution"]
+    start, end = (date.fromisoformat(cfg["time"][key]) for key in ("start", "end"))
+    days = min(31, (end-start).days+1)
+    maximum = cfg["execution"]["max_tile_mb"]*1024**2
+    while True:
+        largest = 0
+        for name in source_names(cfg):
+            source = SOURCES[name]
+            steps = 1 if source["cadence"] in ("monthly", "static") else days
+            if source["cadence"] == "hourly":
+                steps = (days+1)*24
+            native_side = math.ceil(tile*r/source["resolution"])+4  # interpolation/area halo
+            largest = max(largest, native_side**2*steps*len(source["features"])*8)
+        if largest <= maximum:
+            return tile
+        if tile == 1:
+            raise ValueError("Even one target cell exceeds the native-array memory budget")
+        tile = max(1, tile//2)
+
+
 def iter_jobs(cfg):
     grid = cfg["grid"]
     start, end = (date.fromisoformat(cfg["time"][k]) for k in ("start", "end"))
     nlat = round((grid["lat_max"] - grid["lat_min"]) / grid["resolution"])
     nlon = round((grid["lon_max"] - grid["lon_min"]) / grid["resolution"])
-    tile, r = grid["tile_cells"], grid["resolution"]
+    tile, r = effective_tile_cells(cfg), grid["resolution"]
+    geographic_support = region_mask(grid["lat_min"]+(np.arange(nlat)+0.5)*r,
+                                     grid["lon_min"]+(np.arange(nlon)+0.5)*r)
     static = all(SOURCES[n]["cadence"] == "static" for n in source_names(cfg))
     current = start
     count = 0
@@ -112,6 +146,8 @@ def iter_jobs(cfg):
             last = end
         for row in range(0, nlat, tile):
             for col in range(0, nlon, tile):
+                if not geographic_support[row:row+tile, col:col+tile].any():
+                    continue  # Geometry-only exclusion, identical for every feature.
                 count += 1
                 if count > cfg["execution"]["max_jobs"]:
                     raise ValueError("Request exceeds max_jobs; narrow region or raise the explicit budget")
@@ -126,7 +162,7 @@ def fingerprint(cfg):
     # Universal newline reading keeps semantic code identity stable on Windows/Linux.
     code = {path.name: hashlib.sha256(path.read_text(encoding="utf-8").encode()).hexdigest()
             for path in sorted(Path(__file__).parent.glob("*.py"))}
-    payload = {"implementation_contract": 1, "code_sha256": code, "config": cfg,
+    payload = {"implementation_contract": 2, "code_sha256": code, "config": cfg, "boundary": boundary_identity(),
                "sources": {n: catalog[n] for n in source_names(cfg)}}
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
@@ -145,6 +181,8 @@ def make_plan(cfg):
         cells_days += elements
         count += 1
     estimated = cells_days * (nvars * 4 + nvars + 1)
+    if not count:
+        raise ValueError("No requested cell centers are inside the official GBR boundary")
     if largest > cfg["execution"]["max_tile_mb"] * 1024**2:
         raise ValueError("Tile exceeds memory budget; lower tile_cells")
     if estimated > cfg["execution"]["max_output_mb"] * 1024**2:
@@ -154,6 +192,11 @@ def make_plan(cfg):
     return {
         "fingerprint": fingerprint(cfg), "profile": cfg["profile"], "sources": names,
         "jobs": count, "fields": nvars, "largest_float32_tile_bytes": largest,
+        "feature_names": [f.name for n in names for f in SOURCES[n]["features"]],
+        "cadence": ("daily" if SOURCES[names[0]]["cadence"] == "hourly" else SOURCES[names[0]]["cadence"]),
+        "study": {"region": "GBR", "envelope": GBR_BOUNDS, "boundary": boundary_identity()},
+        "effective_tile_cells": effective_tile_cells(cfg),
+        "unity": "all_selected_features_at_every_retained_coordinate_for_the_entire_request",
         "estimated_uncompressed_output_bytes": estimated,
         "reviewed_intersection": {"start": max(SOURCES[n]["start"] for n in names),
                                   "end": min(SOURCES[n]["catalog_end"] for n in names)},

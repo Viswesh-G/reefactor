@@ -9,6 +9,9 @@ def normalize_coordinates(ds):
     names = {old: new for old, new in [("latitude", "lat"), ("longitude", "lon"),
              ("valid_time", "time")] if old in ds.dims and new not in ds.dims}
     ds = ds.rename(names)
+    if "zc" in ds and ds.zc.dims == ("k",):
+        ds = ds.swap_dims({"k": "zc"}).rename(zc="depth")
+        ds = ds.assign_coords(depth=-ds.depth)
     if "elevation" in ds.dims:
         ds = ds.rename(elevation="depth")
         ds = ds.assign_coords(depth=-ds.depth)
@@ -16,7 +19,13 @@ def normalize_coordinates(ds):
         # Surface model level only; never silently average the whole water column.
         if float(ds.depth.min()) > 2:
             raise ValueError("Requested surface field has no near-surface depth level")
-        ds = ds.isel(depth=int(ds.depth.argmin(dim="depth")), drop=True)
+        index = int(ds.depth.argmin(dim="depth"))
+        selected_depth = float(ds.depth[index])
+        for name in ds.data_vars:
+            if "depth" in ds[name].dims:
+                ds[name].attrs = {**ds[name].attrs, "selected_depth_m": selected_depth,
+                                  "vertical_selection": "native_near_surface_model_layer"}
+        ds = ds.isel(depth=index, drop=True)
     for dim in ("number", "expver"):
         if dim in ds.dims:
             if ds.sizes[dim] != 1:
@@ -135,7 +144,11 @@ def harmonize(ds, source_name, job):
         result.attrs = {"units": feature.units, "source": source_name, "native_variable": native,
                         "native_resolution_degrees": source["resolution"], "native_cadence": source["cadence"],
                         "source_kind": source["kind"], "role": feature.role,
+                        "source_long_name": field.attrs.get("long_name", ""),
+                        "vertical_selection": field.attrs.get("vertical_selection", "source_2D_field"),
                         "spatial_method": "spherical_cell_overlap_water_area_mean_min_support_0.5"}
+        if "selected_depth_m" in field.attrs:
+            result.attrs["selected_depth_m"] = field.attrs["selected_depth_m"]
         output[feature.name] = result
     result = xr.Dataset(output)
     if source["cadence"] == "monthly":

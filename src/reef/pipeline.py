@@ -18,10 +18,12 @@ from .observability import Journal, exclusive_run, peak_rss_bytes
 from .planning import fingerprint, iter_jobs, make_plan, source_names
 from .sources import fetch_job, preflight
 from .cache import ByteCache
+from .unity import apply_domain, check_tile_axes, finalize_domain
+from .catalog import SOURCES
 
 TRANSITIONS = {
     "INIT": {"PREFLIGHT", "ERROR"}, "PREFLIGHT": {"RUNNING", "ERROR"},
-    "RUNNING": {"READY", "ERROR"}, "READY": set(), "ERROR": set(),
+    "RUNNING": {"FINALIZING", "ERROR"}, "FINALIZING": {"READY", "ERROR"}, "READY": set(), "ERROR": set(),
     "PENDING": {"FETCHING_ALIGNING", "REUSED", "FAILED"},
     "FETCHING_ALIGNING": {"VALIDATING", "FAILED"}, "VALIDATING": {"STAGING", "FAILED"},
     "STAGING": {"COMMITTED", "FAILED"}, "COMMITTED": set(), "REUSED": set(), "FAILED": set(),
@@ -125,7 +127,7 @@ def run_pipeline(cfg, fetcher=fetch_job, preflight_check=preflight):
         scratch.mkdir(exist_ok=True)
         # Only remove this run's scratch/staging leftovers after acquiring its OS lock.
         # Verify resolved paths before any recursive removal (also on Windows).
-        leftovers = list(scratch.iterdir()) + list((root / "tiles").glob("*.partial"))
+        leftovers = list(scratch.iterdir()) + list((root / "tiles").glob("*.partial")) + list(root.glob("domain_*.partial"))
         for path in leftovers:
             if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
                 raise RuntimeError("Unsafe scratch path; refusing cleanup")
@@ -170,6 +172,7 @@ def run_pipeline(cfg, fetcher=fetch_job, preflight_check=preflight):
                             ds, provenance = future.result()
                             try:
                                 machine.move("VALIDATING")
+                                check_tile_axes(ds, plan["feature_names"], job, plan["cadence"])
                                 ds, metrics = validate_partition(ds, names, cfg["execution"]["max_missing_fraction"])
                                 machine.move("STAGING")
                                 target, metadata = store_partition(ds, root, job, identity, provenance, metrics,
@@ -190,6 +193,8 @@ def run_pipeline(cfg, fetcher=fetch_job, preflight_check=preflight):
                         pending.cancel()
                     raise
             manifest["partitions"].sort()
+            run.move("FINALIZING")
+            manifest["model_domain"] = finalize_domain(root, manifest)
             manifest["status"] = "READY"
             write_json_atomic(root / "manifest.json", manifest)
             run.move("READY", partitions=len(manifest["partitions"]), bytes=used_bytes,
@@ -208,7 +213,7 @@ def run_pipeline(cfg, fetcher=fetch_job, preflight_check=preflight):
     return root
 
 
-def open_cube(root, allow_partial=False):
+def open_cube(root, allow_partial=False, model_ready=True):
     """Lazy virtual cube; one physical copy of each partition, no monolithic rewrite."""
     root = Path(root)
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
@@ -217,5 +222,12 @@ def open_cube(root, allow_partial=False):
     paths = [root / p for p in manifest["partitions"]]
     if not paths:
         raise ValueError("No committed partitions")
-    return xr.open_mfdataset(paths, engine="zarr", chunks={}, combine="by_coords",
-                             join="exact", compat="no_conflicts", combine_attrs="drop_conflicts")
+    ds = xr.open_mfdataset(paths, engine="zarr", chunks={}, combine="by_coords",
+                            join="outer", compat="no_conflicts", combine_attrs="drop_conflicts")
+    if model_ready:
+        try:
+            return apply_domain(ds, root, manifest)
+        except BaseException:
+            ds.close()
+            raise
+    return ds

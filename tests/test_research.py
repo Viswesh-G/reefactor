@@ -308,3 +308,150 @@ def test_remote_subset_never_builds_a_global_dask_graph(monkeypatch):
         np.testing.assert_allclose(result.ocean_temperature, 28)
     finally:
         SOURCES.pop("test_huge")
+
+
+def test_fixed_domain_masks_every_feature_in_every_month(tmp_path):
+    cfg = configuration(tmp_path)
+    cfg["time"]["end"] = "2018-02-03"
+    cfg["grid"]["tile_cells"] = 4
+    def gap_in_one_feature(job, *args):
+        ds, details = fixture_fetch(job, *args)
+        if job.start.startswith("2018-02"):
+            ds.sea_surface_temperature.values[0, 0, 0] = np.nan
+        return ds, details
+    root = run_pipeline(cfg, gap_in_one_feature, lambda *a: None)
+    with open_cube(root) as cube:
+        assert not bool(cube.model_domain.values[0, 0])
+        assert np.isnan(cube.degree_heating_weeks.values[:, 0, 0]).all()
+        assert np.isnan(cube.sea_surface_temperature.values[:, 0, 0]).all()
+        np.testing.assert_array_equal(np.isfinite(cube.degree_heating_weeks), np.isfinite(cube.sea_surface_temperature))
+    with open_cube(root, model_ready=False) as raw:
+        assert np.isfinite(raw.degree_heating_weeks.values[:, 0, 0]).all()
+
+
+def test_missing_feature_tile_and_coordinate_drift_are_rejected(tmp_path):
+    cfg = configuration(tmp_path)
+    def missing(*args):
+        ds, details = fixture_fetch(*args)
+        return ds.drop_vars("degree_heating_weeks"), details
+    with pytest.raises(ValueError, match="missing required features"):
+        run_pipeline(cfg, missing, lambda *a: None)
+    def shifted(*args):
+        ds, details = fixture_fetch(*args)
+        return ds.assign_coords(lon=ds.lon+0.01), details
+    with pytest.raises(ValueError, match="common coordinates"):
+        run_pipeline(cfg, shifted, lambda *a: None)
+
+
+def test_other_regions_are_rejected(tmp_path):
+    cfg = configuration(tmp_path)
+    cfg["grid"].update(lat_min=0, lat_max=1)
+    with pytest.raises(ValueError, match="GBR study"):
+        validate_config(cfg)
+
+
+def test_weight_budgets_keep_all_130_features_and_both_heads():
+    torch = pytest.importorskip("torch")
+    from src.reef.learning import build_forecaster, parameter_count
+    torch.set_num_threads(1)
+    for budget in (1000, 10000, 100000, 1000000):
+        model = build_forecaster(130, budget, horizon=2)
+        assert budget*0.95 <= parameter_count(model) <= budget
+        assert model.project.in_channels == 260
+    model = build_forecaster(130, 1000, horizon=2)
+    inputs = torch.randn(1, 3, 260, 3, 3)
+    result = model(inputs, return_bleaching=True)
+    assert result["sst"].shape == (1, 2, 3, 3)
+    assert result["bleaching_percent"].shape == (1, 3, 3)
+    (result["sst"].square().mean()+result["bleaching_percent"].mean()).backward()
+    assert bool((model.project.weight.grad.abs().sum(dim=(0, 2, 3)) > 0).all())
+
+
+def test_opendap_transport_keeps_byte_guards_and_provenance(monkeypatch):
+    import requests
+    from pydap.model import DatasetType, BaseType
+    from pydap.handlers.lib import BaseHandler
+    from webob import Request
+    from src.reef.catalog import Feature
+    from src.reef.opendap import fetch_opendap
+    dataset = DatasetType("fixture")
+    for name, data, units in [("time", np.arange(3, dtype=float), "days since 2018-01-01"),
+                             ("latitude", np.arange(6)*0.25-18.125, "degrees_north"),
+                             ("longitude", np.arange(6)*0.25+145.875, "degrees_east")]:
+        dataset[name] = BaseType(name, data=data, dims=(name,), attributes={"units": units})
+    dataset["temp"] = BaseType("temp", data=np.full((3, 6, 6), 28, dtype="float32"),
+        dims=("time", "latitude", "longitude"), attributes={"units": "degree_Celsius"})
+    handler, calls = BaseHandler(dataset), []
+    def local_response(session, prepared, **kwargs):
+        from urllib.parse import urlsplit
+        url = urlsplit(prepared.url)
+        response = Request.blank(url.path+("?"+url.query if url.query else "")).get_response(handler)
+        out = requests.Response()
+        out.status_code, out._content, out._content_consumed = response.status_int, response.body, True
+        out.headers.update(response.headers)
+        out.url, out.request = prepared.url, prepared
+        calls.append(prepared.url)
+        return out
+    monkeypatch.setattr(requests.Session, "send", local_response)
+    source = {"features": [Feature("ereefs_fixture", "temp", "degree_Celsius")],
+        "url": "https://fixture.test/data", "product": "fixture", "version": "fixture",
+        "resolution": 0.25, "lat_bounds": [-90, 90], "cadence": "daily", "kind": "test_fixture",
+        "temporal_statistic": "daily_snapshot"}
+    SOURCES["test_transport"] = source
+    try:
+        cfg = load_config("configs/research.yaml")
+        output, provenance = fetch_opendap(source, "test_transport",
+            Job("x", "2018-01-01", "2018-01-03", (-18, -17), (146, 147), 0.25), cfg)
+        np.testing.assert_allclose(output.ereefs_fixture, 28)
+        assert provenance["requests"] == len(calls) and provenance["requests"] >= 4
+        assert provenance["download_bytes"] > 0
+        cfg["execution"]["max_download_mb"] = 0.000001
+        with pytest.raises(RuntimeError, match="transfer/time budget"):
+            fetch_opendap(source, "test_transport",
+                Job("x", "2018-01-01", "2018-01-03", (-18, -17), (146, 147), 0.25), cfg)
+    finally:
+        SOURCES.pop("test_transport")
+
+
+def test_native_memory_budget_shrinks_rich_tiles():
+    from src.reef.planning import effective_tile_cells
+    cfg = load_config("configs/research.yaml", "gbr_rich_public", {"time": {"end": "2018-01-31"}})
+    assert effective_tile_cells(cfg) < cfg["grid"]["tile_cells"]
+    cfg["execution"]["max_tile_mb"] = 0.000001
+    with pytest.raises(ValueError, match="one target cell"):
+        effective_tile_cells(cfg)
+
+
+def test_sparse_biological_targets_do_not_create_negative_labels(tmp_path):
+    torch = pytest.importorskip("torch")
+    import polars as pl
+    from datetime import date
+    from src.reef.learning import FeatureWindowDataset
+    cfg = configuration(tmp_path/"run")
+    cfg["grid"]["tile_cells"] = 4
+    cfg["time"]["end"] = "2018-02-09"
+    root = run_pipeline(cfg, fixture_fetch, lambda *a: None)
+    with open_cube(root) as cube:
+        row, col = np.argwhere(cube.model_domain.values)[0]
+        lat, lon = float(cube.lat[row]), float(cube.lon[col])
+    labels = tmp_path/"sparse.parquet"
+    pl.DataFrame({"survey_date": [date(2018, 1, 5)], "lat": [lat], "lon": [lon],
+                  "bleaching_percent": [25.0], "target_valid": [True]}).write_parquet(labels)
+    ds = FeatureWindowDataset(root, ["sea_surface_temperature"], lookback=2, horizon=2,
+                              patch_size=4, labels_path=labels)
+    try:
+        assert ds[0]["bleaching_target"].numel() == 0
+        assert ds[1]["bleaching_target"].tolist() == [25.0]
+        assert ds[1]["bleaching_sites"].shape == (1, 2)
+    finally:
+        ds.close()
+
+
+def test_geographic_tile_pruning_keeps_one_complete_full_gbr_schema(tmp_path):
+    cfg = configuration(tmp_path)
+    cfg["grid"].update(lat_min=-24.0, lat_max=-10.0, lon_min=142.0, lon_max=154.0, tile_cells=16)
+    root = run_pipeline(cfg, fixture_fetch, lambda *a: None)
+    with open_cube(root) as cube:
+        assert cube.sizes["lat"] == 56 and cube.sizes["lon"] == 48
+        assert np.isnan(cube.sea_surface_temperature.values[:, ~cube.model_domain.values]).all()
+        np.testing.assert_array_equal(np.isfinite(cube.sea_surface_temperature), np.isfinite(cube.degree_heating_weeks))

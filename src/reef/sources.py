@@ -144,6 +144,9 @@ def fetch_source(name, job, cfg, scratch, cache=None):
         native = xr.concat(pieces, dim="valid_time" if "valid_time" in pieces[0].dims else "time")
         output = harmonize(native, name, job)
         provenance["download_bytes"] = sum(p["download_bytes"] for p in provenance["downloads"])
+    elif source["backend"] == "opendap":
+        from .opendap import fetch_opendap
+        return fetch_opendap(source, name, job, cfg)
     else:
         raise ValueError(f"Unsupported backend {source['backend']}")
     output = output.compute(scheduler="synchronous")

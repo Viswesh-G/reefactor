@@ -1,11 +1,16 @@
 # Small real-data smoke window by default. Expand only after checking the plan.
 schema_version: 1
+study:
+  region: GBR
 profile: noaa_smoke
 profiles:
   noaa_smoke: [noaa]
   transport: [noaa, physics, era5]
   ocean: [noaa, physics, bgc]
   daily: [noaa, physics, era5, bgc]
+  gbr_long: [noaa, physics, era5, bgc]
+  gbr_rich: [noaa, physics, era5, ereefs_bgc]
+  gbr_rich_public: [noaa, physics, ereefs_bgc]
   monthly_context: [bgc_monthly]
   static_context: [static]
 time:
@@ -24,6 +29,7 @@ execution:
   max_attempts: 3
   retry_base_seconds: 1.0
   timeout_seconds: 60
+  source_deadline_seconds: 180 # Whole eReefs source, including metadata and data requests.
   max_download_mb: 128
   max_tile_mb: 64
   remote_cache_mb: 64 # Compressed native chunks reused in RAM, never on disk.
