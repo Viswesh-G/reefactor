@@ -1,5 +1,9 @@
 # REEFS_ML — Physics-Informed ConvLSTM for Coral Bleaching Prediction
 
+> This document describes the legacy experiment. The expanded data pipeline,
+> verified coverage distinctions and current limitations are documented in
+> [RESEARCH_EXPANSION.md](RESEARCH_EXPANSION.md) and the repository root README.
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![CPU-Compatible](https://img.shields.io/badge/GPU-Not%20Required-green.svg)]()
 [![Open Data](https://img.shields.io/badge/data-NOAA%20Open%20Access-blue.svg)](https://coralreefwatch.noaa.gov)

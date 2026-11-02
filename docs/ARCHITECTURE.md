@@ -1,5 +1,8 @@
 # REEFS_ML — Codebase Architecture
 
+> Legacy architecture. See [RESEARCH_EXPANSION.md](RESEARCH_EXPANSION.md) for the
+> separate bounded concurrent ingestion and multivariate research path.
+
 > Physics-Informed ConvLSTM for Great Barrier Reef Coral Bleaching Prediction  
 > Complete reproducibility guide for any researcher to replicate the paper.
 
