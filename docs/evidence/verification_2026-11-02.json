@@ -1,0 +1,1261 @@
+{
+  "catalog_coverage": {
+    "bgc": {
+      "raw_catalog_sha256": "c99b527ce473f1831c7c517e4a97778d117e994dc4bd60c8119c5429357d7ef9",
+      "variables": [
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mg m-3",
+          "variable": "chl",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "no3",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mg m-3 day-1",
+          "variable": "nppv",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "o2",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "po4",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-31T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "si",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mg m-3",
+          "variable": "chl",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "fe",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "no3",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mg m-3 day-1",
+          "variable": "nppv",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "o2",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "1",
+          "variable": "ph",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "phyc",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "po4",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "mmol m-3",
+          "variable": "si",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "Pa",
+          "variable": "spco2",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "m",
+          "variable": "e1t",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "m",
+          "variable": "e2t",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "m",
+          "variable": "e3t",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "m",
+          "variable": "deptho",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "1",
+          "variable": "deptho_lev",
+          "version": "202406"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.75,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "units": "1",
+          "variable": "mask",
+          "version": "202406"
+        }
+      ]
+    },
+    "noaa": {
+      "time_coverage_end": "2026-10-29T12:00:00Z",
+      "time_coverage_start": "1985-04-01T12:00:00Z"
+    },
+    "physics": {
+      "raw_catalog_sha256": "692a4557cecd53ffe874512276d55c97f7c7b8e070e01538c21d045f6e245eca",
+      "variables": [
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "bottomT",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "mlotst",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "1",
+          "variable": "siconc",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "sithick",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "1e-3",
+          "variable": "so",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "thetao",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "uo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "usi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vsi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "zos",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg-climatology_P1M-m",
+          "first_timestamp": "2004-01-01T00:00:00+00:00",
+          "last_timestamp": "2004-12-01T00:00:00+00:00",
+          "units": "hours since 1950-01-01",
+          "variable": "climatology_bounds",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "bottomT",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m",
+          "variable": "mlotst",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "1",
+          "variable": "siconc",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m",
+          "variable": "sithick",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "1e-3",
+          "variable": "so",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "thetao",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "uo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "usi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vsi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-09-22T00:00:00+00:00",
+          "units": "m",
+          "variable": "zos",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "bottomT",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "mlotst",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "1",
+          "variable": "siconc",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "sithick",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "1e-3",
+          "variable": "so",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "degrees_C",
+          "variable": "thetao",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "uo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "usi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vo",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m s-1",
+          "variable": "vsi",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1M-m",
+          "first_timestamp": "1993-01-01T00:00:00+00:00",
+          "last_timestamp": "2026-08-01T00:00:00+00:00",
+          "units": "m",
+          "variable": "zos",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "m",
+          "variable": "deptho",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "1",
+          "variable": "deptho_lev",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "1",
+          "variable": "mask",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "m",
+          "variable": "e1t",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "m",
+          "variable": "e2t",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "m",
+          "variable": "e3t",
+          "version": "202311"
+        },
+        {
+          "bbox": [
+            -180.0,
+            -80.0,
+            179.9166717529297,
+            90.0
+          ],
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_static",
+          "units": "m",
+          "variable": "mdt",
+          "version": "202311"
+        }
+      ]
+    }
+  },
+  "docker": {
+    "build_and_run": "unverified; Docker engine unavailable",
+    "compose_syntax": "valid"
+  },
+  "era5": "Unverified retrieval: CDSAPI_KEY not configured; no values fabricated",
+  "fetched_gridded_fields": 20,
+  "labels": {
+    "doi": "10.26008/1912/bco-dmo.773466.2",
+    "license": "CC-BY-4.0",
+    "parquet_bytes": 835959,
+    "parquet_sha256": "9fbb6e63ee7bfbf8a50fcd6ec55a7c8b2f1186901759b0edb9adfd9f0906a637",
+    "raw_bytes": 16772400,
+    "raw_sha256": "78cc014b1e7887f26f4c44a40d4d9213212f3c6217541c6a1b69e723b61bfacb",
+    "summary": {
+      "first": "1980-06-15",
+      "last": "2020-08-15",
+      "rows": 41361,
+      "sites": 12702,
+      "valid_targets": 34515
+    },
+    "url": "https://datadocs.bco-dmo.org/dataset/773466/file/B11vA82u7y2Owp/global_bleaching_environmental.csv",
+    "version": 2
+  },
+  "local_tests": {
+    "command": "python -m pytest tests -q",
+    "passed": 21
+  },
+  "long_history_plan": {
+    "coverage_status": "catalog_only_until_partitions_pass_runtime_validation",
+    "estimated_uncompressed_output_bytes": 29707136,
+    "fields": 30,
+    "fingerprint": "e65913be66cedc9249763e8a2539b1558826c8aa53cfe73093c0495a44e6535c",
+    "grid": {
+      "lat_max": -17.0,
+      "lat_min": -18.0,
+      "lon_max": 147.0,
+      "lon_min": 146.0,
+      "resolution": 0.25,
+      "tile_cells": 16
+    },
+    "jobs": 404,
+    "largest_float32_tile_bytes": 59520,
+    "profile": "daily",
+    "requested": {
+      "end": "2026-08-31",
+      "start": "1993-01-01"
+    },
+    "reviewed_intersection": {
+      "end": "2026-08-31",
+      "start": "1993-01-01"
+    },
+    "source_versions": {
+      "bgc": "202406",
+      "era5": "ERA5",
+      "noaa": "v3.1",
+      "physics": "202311"
+    },
+    "sources": [
+      "noaa",
+      "physics",
+      "era5",
+      "bgc"
+    ],
+    "unresolved_versions": []
+  },
+  "memory_regression": {
+    "after_peak_rss_bytes": 204107776,
+    "before_peak_rss_bytes": 10151796736,
+    "fix": "Backend-lazy Zarr selection precedes any global Dask graph construction",
+    "test": "test_remote_subset_never_builds_a_global_dask_graph"
+  },
+  "pilots": {
+    "daily_ocean": {
+      "common_valid_fraction": 1.0,
+      "fingerprint": "9572ad20163feccb4f9001bf9a65b085283031d0bd21dc76e44a3b51e8b23f15",
+      "job": {
+        "end": "2018-01-03",
+        "key": "2018-01-01_00000_00000",
+        "lat_edges": [
+          -18.0,
+          -17.0
+        ],
+        "lon_edges": [
+          146.0,
+          147.0
+        ],
+        "resolution": 0.25,
+        "start": "2018-01-01"
+      },
+      "metrics": {
+        "chlorophyll": {
+          "max": 0.28523144125938416,
+          "min": 0.1044703796505928,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "common_valid_fraction": 1.0,
+        "degree_heating_weeks": {
+          "max": 0.10898182541131973,
+          "min": 0.0,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "mixed_layer_depth": {
+          "max": 18.65026092529297,
+          "min": 9.875565528869629,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "nitrate": {
+          "max": 0.027817875146865845,
+          "min": 0.0011543675791472197,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "ocean_temperature": {
+          "max": 29.978811264038086,
+          "min": 29.064241409301758,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "oxygen": {
+          "max": 201.3924102783203,
+          "min": 200.12911987304688,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "phosphate": {
+          "max": 0.1556403934955597,
+          "min": 0.10094685852527618,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "primary_production": {
+          "max": 21.659446716308594,
+          "min": 2.771484851837158,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "salinity": {
+          "max": 35.45543670654297,
+          "min": 34.78528594970703,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "sea_level": {
+          "max": 0.7658237814903259,
+          "min": 0.5273495316505432,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "sea_surface_temperature": {
+          "max": 29.63248062133789,
+          "min": 28.709186553955078,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "silicate": {
+          "max": 2.5899078845977783,
+          "min": 1.4598171710968018,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "water_u": {
+          "max": 0.4304264187812805,
+          "min": 0.02060612104833126,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "water_v": {
+          "max": -0.22456318140029907,
+          "min": -0.9601631760597229,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        }
+      },
+      "run_directory": "data/research/9572ad20163feccb",
+      "run_metrics": {
+        "bytes": 62360,
+        "elapsed_seconds": 33.0,
+        "partitions": 1,
+        "peak_rss_bytes": 204107776,
+        "ram_cache_hits": 48,
+        "ram_cache_misses": 42,
+        "ram_cache_peak_bytes": 21878501
+      },
+      "sources": [
+        {
+          "attempts": 1,
+          "dataset_id": "dhw_5km",
+          "download_bytes": 39596,
+          "etag": null,
+          "last_modified": "Mon, 02 Nov 2026 11:26:21 GMT",
+          "product": "CoralTemp v3.1",
+          "raw_sha256": "ec3ccb7ab5f019fd9769761a77a8a308997656451d8bd2b384b458d7d8e041c1",
+          "requested_version": "v3.1",
+          "seconds": 1.6089999999967404,
+          "source": "noaa",
+          "version_status": "pinned"
+        },
+        {
+          "attempts": 30,
+          "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+          "download_bytes": 15226048,
+          "product": "GLOBAL_MULTIYEAR_PHY_001_030",
+          "ram_cache_bytes_served": 15213230,
+          "ram_cache_hits": 33,
+          "requested_version": "202311",
+          "requests": 30,
+          "seconds": 24.0,
+          "source": "physics",
+          "url": "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/geoChunked.zarr",
+          "version_status": "pinned"
+        },
+        {
+          "attempts": 12,
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+          "download_bytes": 6652453,
+          "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+          "ram_cache_bytes_served": 6645765,
+          "ram_cache_hits": 15,
+          "requested_version": "202406",
+          "requests": 12,
+          "seconds": 6.35899999999674,
+          "source": "bgc",
+          "url": "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1D-m_202406/geoChunked.zarr",
+          "version_status": "pinned"
+        }
+      ],
+      "status": "READY",
+      "stored_partition_bytes": 62360
+    },
+    "monthly": {
+      "common_valid_fraction": 1.0,
+      "fingerprint": "1c245b8b2330fa753557e29a9d8150f284efc96c57d79afeeabf79262744a38a",
+      "job": {
+        "end": "2018-01-31",
+        "key": "2018-01-01_00000_00000",
+        "lat_edges": [
+          -18.0,
+          -17.0
+        ],
+        "lon_edges": [
+          146.0,
+          147.0
+        ],
+        "resolution": 0.25,
+        "start": "2018-01-01"
+      },
+      "metrics": {
+        "common_valid_fraction": 1.0,
+        "iron": {
+          "max": 0.004592267796397209,
+          "min": 0.0006287045544013381,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "ph": {
+          "max": 8.036113739013672,
+          "min": 8.028306007385254,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "phytoplankton_carbon": {
+          "max": 2.640472173690796,
+          "min": 1.3978866338729858,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "surface_pco2": {
+          "max": 40.0081787109375,
+          "min": 38.69105911254883,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        }
+      },
+      "run_directory": "data/research/1c245b8b2330fa75",
+      "run_metrics": {
+        "bytes": 22947,
+        "partitions": 1,
+        "ram_cache_hits": 13,
+        "ram_cache_misses": 10,
+        "ram_cache_peak_bytes": 1596465
+      },
+      "sources": [
+        {
+          "attempts": 10,
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+          "download_bytes": 1596465,
+          "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+          "ram_cache_bytes_served": 1582830,
+          "ram_cache_hits": 13,
+          "requested_version": "202406",
+          "requests": 10,
+          "seconds": 7.625,
+          "source": "bgc_monthly",
+          "url": "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1M-m_202406/geoChunked.zarr",
+          "version_status": "pinned"
+        }
+      ],
+      "status": "READY",
+      "stored_partition_bytes": 22947
+    },
+    "static": {
+      "common_valid_fraction": 1.0,
+      "fingerprint": "1ac7f979b8f08f676ece450230b4d6df5d7f8d5e1d3d09be61809334a64aad23",
+      "job": {
+        "end": "2018-01-03",
+        "key": "2018-01-01_00000_00000",
+        "lat_edges": [
+          -18.0,
+          -17.0
+        ],
+        "lon_edges": [
+          146.0,
+          147.0
+        ],
+        "resolution": 0.25,
+        "start": "2018-01-01"
+      },
+      "metrics": {
+        "bathymetry": {
+          "max": 925.2042236328125,
+          "min": 15.460129737854004,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        },
+        "common_valid_fraction": 1.0,
+        "ocean_fraction": {
+          "max": 1.0,
+          "min": 0.5,
+          "missing_fraction_on_ever_valid_support": 0.0,
+          "supported_cell_fraction": 1.0
+        }
+      },
+      "run_directory": "data/research/1ac7f979b8f08f67",
+      "run_metrics": {
+        "bytes": 12189,
+        "elapsed_seconds": 6.23499999998603,
+        "partitions": 1,
+        "peak_rss_bytes": 182403072,
+        "ram_cache_hits": 5,
+        "ram_cache_misses": 6,
+        "ram_cache_peak_bytes": 1347267
+      },
+      "sources": [
+        {
+          "attempts": 6,
+          "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+          "download_bytes": 1347267,
+          "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+          "ram_cache_bytes_served": 1342502,
+          "ram_cache_hits": 5,
+          "requested_version": "202406",
+          "requests": 6,
+          "seconds": 5.937999999994645,
+          "source": "static",
+          "url": "https://s3.waw3-1.cloudferro.com/mdl-arco-time-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_static_202406--ext--mask/static.zarr",
+          "version_status": "pinned"
+        }
+      ],
+      "status": "READY",
+      "stored_partition_bytes": 12189
+    }
+  },
+  "registered_gridded_fields": 36,
+  "reviewed_date": "2026-11-02",
+  "trained_biological_model": false,
+  "unfetched_gridded_fields": [
+    "wind_u",
+    "wind_v",
+    "air_temperature",
+    "dewpoint",
+    "surface_pressure",
+    "mean_sea_level_pressure",
+    "cloud_fraction",
+    "shortwave_down",
+    "longwave_down",
+    "shortwave_net",
+    "longwave_net",
+    "latent_heat_flux",
+    "sensible_heat_flux",
+    "precipitation",
+    "evaporation",
+    "uv_down"
+  ],
+  "verification_kind": "real_remote_data_pilots_and_separate_generated_fixture_tests"
+}

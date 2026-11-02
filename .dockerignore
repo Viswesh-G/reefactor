@@ -1,0 +1,13 @@
+.git
+.venv
+.venv311
+.python
+.tools
+venv
+env
+data
+__pycache__
+**/__pycache__
+.pytest_cache
+*.log
+*.err

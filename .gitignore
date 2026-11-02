@@ -32,5 +32,8 @@ data/
 
 
 the-idea.md
-*.txt
-docs/
+.tools/
+.python/
+.venv311/
+.pytest_cache/
+.ruff_cache/

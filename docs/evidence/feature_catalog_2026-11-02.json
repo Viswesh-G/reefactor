@@ -1,0 +1,531 @@
+{
+  "derived": {
+    "current_speed": [
+      "water_u",
+      "water_v"
+    ],
+    "derived_dhw": [
+      "hotspot"
+    ],
+    "freshwater_flux": [
+      "precipitation",
+      "evaporation"
+    ],
+    "heat_tendency": [
+      "net_heat_flux",
+      "mixed_layer_depth"
+    ],
+    "hotspot": [
+      "sea_surface_temperature",
+      "official_mmm"
+    ],
+    "net_heat_flux": [
+      "shortwave_net",
+      "longwave_net",
+      "latent_heat_flux",
+      "sensible_heat_flux"
+    ],
+    "relative_humidity": [
+      "air_temperature",
+      "dewpoint"
+    ],
+    "season_cos": [
+      "time"
+    ],
+    "season_sin": [
+      "time"
+    ],
+    "surface_model_temperature_difference": [
+      "sea_surface_temperature",
+      "ocean_temperature"
+    ],
+    "wind_speed": [
+      "wind_u",
+      "wind_v"
+    ]
+  },
+  "gridded": {
+    "bgc": {
+      "backend": "copernicus",
+      "cadence": "daily",
+      "catalog_end": "2026-08-31",
+      "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1D-m",
+      "documentation": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_BGC_001_029/description",
+      "features": [
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "chlorophyll",
+          "native": "chl",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mg m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "nitrate",
+          "native": "no3",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "phosphate",
+          "native": "po4",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "silicate",
+          "native": "si",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "oxygen",
+          "native": "o2",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "primary_production",
+          "native": "nppv",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mg m-3 day-1"
+        }
+      ],
+      "kind": "unassimilated_hindcast",
+      "lat_bounds": [
+        -80,
+        90
+      ],
+      "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+      "provider": "Copernicus Marine",
+      "resolution": 0.25,
+      "start": "1993-01-01",
+      "version": null,
+      "zarr_urls": [
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1D-m_202406/geoChunked.zarr",
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-time-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1D-m_202406/timeChunked.zarr"
+      ],
+      "zarr_version": "202406"
+    },
+    "bgc_monthly": {
+      "backend": "copernicus",
+      "cadence": "monthly",
+      "catalog_end": "2026-08-31",
+      "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_P1M-m",
+      "documentation": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_BGC_001_029/description",
+      "features": [
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "iron",
+          "native": "fe",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "phytoplankton_carbon",
+          "native": "phyc",
+          "reducer": "mean",
+          "role": "input",
+          "units": "mmol m-3"
+        },
+        {
+          "maximum": 10,
+          "minimum": 6,
+          "name": "ph",
+          "native": "ph",
+          "reducer": "mean",
+          "role": "input",
+          "units": "1"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "surface_pco2",
+          "native": "spco2",
+          "reducer": "mean",
+          "role": "input",
+          "units": "Pa"
+        }
+      ],
+      "kind": "unassimilated_hindcast",
+      "lat_bounds": [
+        -80,
+        90
+      ],
+      "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+      "provider": "Copernicus Marine",
+      "resolution": 0.25,
+      "start": "1993-01-01",
+      "version": null,
+      "zarr_urls": [
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1M-m_202406/geoChunked.zarr",
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-time-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_P1M-m_202406/timeChunked.zarr"
+      ],
+      "zarr_version": "202406"
+    },
+    "era5": {
+      "backend": "cds",
+      "cadence": "hourly",
+      "catalog_end": "2026-10-26",
+      "dataset_id": "reanalysis-era5-single-levels",
+      "documentation": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=overview",
+      "features": [
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "wind_u",
+          "native": "10m_u_component_of_wind",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m s-1"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "wind_v",
+          "native": "10m_v_component_of_wind",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m s-1"
+        },
+        {
+          "maximum": 340,
+          "minimum": 180,
+          "name": "air_temperature",
+          "native": "2m_temperature",
+          "reducer": "mean",
+          "role": "input",
+          "units": "K"
+        },
+        {
+          "maximum": 340,
+          "minimum": 150,
+          "name": "dewpoint",
+          "native": "2m_dewpoint_temperature",
+          "reducer": "mean",
+          "role": "input",
+          "units": "K"
+        },
+        {
+          "maximum": 110000,
+          "minimum": 50000,
+          "name": "surface_pressure",
+          "native": "surface_pressure",
+          "reducer": "mean",
+          "role": "input",
+          "units": "Pa"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "mean_sea_level_pressure",
+          "native": "mean_sea_level_pressure",
+          "reducer": "mean",
+          "role": "input",
+          "units": "Pa"
+        },
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "name": "cloud_fraction",
+          "native": "total_cloud_cover",
+          "reducer": "mean",
+          "role": "input",
+          "units": "1"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "shortwave_down",
+          "native": "mean_surface_downward_short_wave_radiation_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "longwave_down",
+          "native": "mean_surface_downward_long_wave_radiation_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "shortwave_net",
+          "native": "mean_surface_net_short_wave_radiation_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "longwave_net",
+          "native": "mean_surface_net_long_wave_radiation_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "latent_heat_flux",
+          "native": "mean_surface_latent_heat_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "sensible_heat_flux",
+          "native": "mean_surface_sensible_heat_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        },
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "precipitation",
+          "native": "mean_total_precipitation_rate",
+          "reducer": "mean",
+          "role": "input",
+          "units": "kg m-2 s-1"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "evaporation",
+          "native": "mean_evaporation_rate",
+          "reducer": "mean",
+          "role": "input",
+          "units": "kg m-2 s-1"
+        },
+        {
+          "maximum": null,
+          "minimum": null,
+          "name": "uv_down",
+          "native": "mean_surface_downward_uv_radiation_flux",
+          "reducer": "mean",
+          "role": "input",
+          "units": "W m-2"
+        }
+      ],
+      "kind": "atmospheric_reanalysis",
+      "lat_bounds": [
+        -90,
+        90
+      ],
+      "product": "reanalysis-era5-single-levels",
+      "provider": "ECMWF / Copernicus CDS",
+      "resolution": 0.25,
+      "start": "1940-01-01",
+      "version": "ERA5"
+    },
+    "noaa": {
+      "backend": "erddap",
+      "cadence": "daily",
+      "catalog_end": "2026-10-29",
+      "dataset_id": "dhw_5km",
+      "documentation": "https://coralreefwatch.noaa.gov/product/5km/index_5km_sst.php",
+      "features": [
+        {
+          "maximum": 40,
+          "minimum": -2,
+          "name": "sea_surface_temperature",
+          "native": "CRW_SST",
+          "reducer": "mean",
+          "role": "input",
+          "units": "degree_Celsius"
+        },
+        {
+          "maximum": 100,
+          "minimum": 0,
+          "name": "degree_heating_weeks",
+          "native": "CRW_DHW",
+          "reducer": "last",
+          "role": "reference",
+          "units": "degree_Celsius_week"
+        }
+      ],
+      "kind": "satellite_analysis",
+      "lat_bounds": [
+        -89.975,
+        89.975
+      ],
+      "product": "CoralTemp v3.1",
+      "provider": "NOAA CRW / PacIOOS mirror",
+      "resolution": 0.05,
+      "start": "1985-04-01",
+      "url": "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/dhw_5km",
+      "version": "v3.1"
+    },
+    "physics": {
+      "backend": "copernicus",
+      "cadence": "daily",
+      "catalog_end": "2026-09-22",
+      "dataset_id": "cmems_mod_glo_phy_my_0.083deg_P1D-m",
+      "documentation": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description",
+      "features": [
+        {
+          "maximum": 45,
+          "minimum": -3,
+          "name": "ocean_temperature",
+          "native": "thetao",
+          "reducer": "mean",
+          "role": "input",
+          "units": "degree_Celsius"
+        },
+        {
+          "maximum": 50,
+          "minimum": 0,
+          "name": "salinity",
+          "native": "so",
+          "reducer": "mean",
+          "role": "input",
+          "units": "1e-3"
+        },
+        {
+          "maximum": 5,
+          "minimum": -5,
+          "name": "water_u",
+          "native": "uo",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m s-1"
+        },
+        {
+          "maximum": 5,
+          "minimum": -5,
+          "name": "water_v",
+          "native": "vo",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m s-1"
+        },
+        {
+          "maximum": 10,
+          "minimum": -10,
+          "name": "sea_level",
+          "native": "zos",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m"
+        },
+        {
+          "maximum": 6000,
+          "minimum": 0,
+          "name": "mixed_layer_depth",
+          "native": "mlotst",
+          "reducer": "mean",
+          "role": "input",
+          "units": "m"
+        }
+      ],
+      "kind": "assimilative_reanalysis",
+      "lat_bounds": [
+        -80,
+        90
+      ],
+      "product": "GLOBAL_MULTIYEAR_PHY_001_030",
+      "provider": "Copernicus Marine",
+      "resolution": 0.08333333333333333,
+      "start": "1993-01-01",
+      "version": null,
+      "zarr_urls": [
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/geoChunked.zarr",
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-time-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/timeChunked.zarr"
+      ],
+      "zarr_version": "202311"
+    },
+    "static": {
+      "backend": "copernicus",
+      "cadence": "static",
+      "catalog_end": "2026-08-31",
+      "dataset_id": "cmems_mod_glo_bgc_my_0.25deg_static",
+      "documentation": "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_BGC_001_029/description",
+      "features": [
+        {
+          "maximum": null,
+          "minimum": 0,
+          "name": "bathymetry",
+          "native": "deptho",
+          "reducer": "mean",
+          "role": "context",
+          "units": "m"
+        },
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "name": "ocean_fraction",
+          "native": "mask",
+          "reducer": "mean",
+          "role": "mask",
+          "units": "1"
+        }
+      ],
+      "kind": "unassimilated_hindcast",
+      "lat_bounds": [
+        -80,
+        90
+      ],
+      "product": "GLOBAL_MULTIYEAR_BGC_001_029",
+      "provider": "Copernicus Marine",
+      "resolution": 0.25,
+      "start": "1993-01-01",
+      "version": null,
+      "zarr_urls": [
+        "https://s3.waw3-1.cloudferro.com/mdl-arco-time-018/arco/GLOBAL_MULTIYEAR_BGC_001_029/cmems_mod_glo_bgc_my_0.25deg_static_202406--ext--mask/static.zarr"
+      ],
+      "zarr_version": "202406"
+    }
+  },
+  "labels": {
+    "context": {
+      "Cyclone_Frequency": "events in 1964-2014; causal availability audit required",
+      "Depth_m": "m",
+      "Distance_to_Shore": "m",
+      "Exposure": "categorical",
+      "Turbidity": "m-1 (Kd490 proxy, 100 km buffer)"
+    },
+    "dataset_id": "773466",
+    "documentation": "https://www.bco-dmo.org/dataset/773466/description",
+    "doi": "10.26008/1912/bco-dmo.773466.2",
+    "end": "2020-08-15",
+    "license": "CC-BY-4.0",
+    "provider": "BCO-DMO",
+    "start": "1980-06-15",
+    "support": "sparse_surveys",
+    "target": {
+      "native": "Percent_Bleaching",
+      "role": "biological_target",
+      "units": "percent"
+    },
+    "url": "https://datadocs.bco-dmo.org/dataset/773466/file/B11vA82u7y2Owp/global_bleaching_environmental.csv",
+    "version": 2
+  }
+}
